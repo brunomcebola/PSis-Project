@@ -4,12 +4,15 @@
 
 typedef struct _apllicationInfo
 {
-   char * key;
-   char * value;
    char * group_id;
    char * secret;
-
 }appInfo;
+
+typedef struct _keyValue
+{
+   char * key;
+   char * value;
+}_keyValue;
 
 int establish_connection(char * group_id, char * secret);
 int put_value(char * key, char * value);
