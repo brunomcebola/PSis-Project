@@ -4,8 +4,8 @@
 
 typedef struct _apllicationInfo
 {
-   char * group_id;
    char * secret;
+   char * group_id; 
 }appInfo;
 
 typedef struct _keyValue
