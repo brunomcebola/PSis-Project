@@ -1,4 +1,44 @@
-#include <stdio.h>~
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#include <pthread.h>
+
+#include "./Console/console-lib.h"
+
+void * console(void *arg){
+    int order_number = 0;
+
+    while(1){
+        
+        order_number = home_screen(&order_number)
+
+        switch (order_number){
+        case 1:
+            // Create Group functions
+            break;
+        case 2:
+            // Delete Group Functions
+            break;
+        case 3:
+            // Show Group Info Functions
+            break;
+        case 4:
+            // Show Application Status Functions
+            break;
+        default:
+            printf("You didn't choose the right option, try again.\n");
+            break;
+        }
+    }
+
+    pthread_exit();
+}
 
 int main(){
 
@@ -7,37 +47,7 @@ int main(){
 
     // local_server console, after being started
 
-    int order_number = 0;
-
-    printf("---------------------\n");
-    printf("-------Console-------\n");
-    printf("---------------------\n");
-
-    printf("What do you want to do ?\n");
-    printf("-- Create Group ------------- 1\n");
-    printf("-- Delete Group ------------- 2\n");
-    printf("-- Show Group Info ---------- 3\n");
-    printf("-- Show Application Status -- 4\n");
-
-
-
-    switch (order_number){
-    case 1:
-        // some code
-        break;
-    case 2:
-        // some code
-        break;
-    case 3:
-        // some code
-        break;
-    case 4:
-        // some code
-        break;
-    default:
-        printf("You didn't choose the right option, try again.\n");
-        break;
-    }
+    
 
 
     return 0;

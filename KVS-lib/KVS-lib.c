@@ -20,6 +20,11 @@
 #define LOCAL_SERVER_ADRESS "/tmp/local_server"
 #define RESPONSE_LEN 10 
 
+#define PUT 'P'
+#define GET 'G'
+#define DEL 'D'
+#define RCB 'R'
+
 int app_socket = -1;
 
 int establish_connection(char * group_id, char * secret){
@@ -79,15 +84,15 @@ int establish_connection(char * group_id, char * secret){
 int put_value(char * key, char * value){
 
     int bytes;
-    char type[4] = "PUT";
+    char type = PUT;
 
     if(app_socket == -1){
         printf("You have not establish connection to the local_server yet\n");
-        return -1;
+        return -1; // arranjar erros
     }
 
     //letting the local_sever know that we are putting a value
-    bytes = write(app_socket, type, sizeof(type));
+    bytes = write(app_socket, &type, sizeof(type));
     if(bytes == 0){
         perror("Error write the secret in the application");
         exit(-1); // arranjar erros
@@ -114,10 +119,10 @@ int put_value(char * key, char * value){
 int get_value(char * key, char ** value){
 
     int bytes;
-    char type[4] = "GET";
+    char type = GET;
 
     //letting the local_sever know that we are getting a value
-    bytes = write(app_socket, type, sizeof(type));
+    bytes = write(app_socket, &type, sizeof(type));
     if(bytes == 0){
         perror("Error write the secret in the application");
         exit(-1); // arranjar erros
@@ -149,10 +154,10 @@ int get_value(char * key, char ** value){
 int delete_value(char * key){
 
     int bytes;
-    char type[4] = "DEL";
+    char type = DEL;
 
     //letting the local_sever know that we are deleting a value
-    bytes = write(app_socket, type, sizeof(type));
+    bytes = write(app_socket, &type, sizeof(type));
     if(bytes == 0){
         perror("Error write the secret in the application");
         exit(-1); // arranjar erros
@@ -169,10 +174,10 @@ int delete_value(char * key){
 
 int register_callback(char * key, void (*callback_funcation)(char *)){
     int bytes;
-    char type[4] = "RCB";
+    char type = RCB ;
 
     //letting the local_sever know that we want to use callback
-    bytes = write(app_socket, type, sizeof(type));
+    bytes = write(app_socket, &type, sizeof(type));
     if(bytes == 0){
         perror("Error write the secret in the application");
         exit(-1); // arranjar erros
