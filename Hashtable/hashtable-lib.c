@@ -8,6 +8,10 @@
 
 #include "hashtable-lib.h"
 
+/*
+Colisions need to be handled with lists
+*/
+
 key_pair * hash_table[HASH_SIZE];
 
 unsigned int hash(char * key){
@@ -23,9 +27,9 @@ unsigned int hash(char * key){
 
     for(int i = 0; i < key_size; i++){
         hash_value += key[i];
-        hash_value = (hash_value * hash_weight) % HASH_SIZE;
+        hash_value = (hash_value * hash_weight);
     }
-
+    hash_value = hash_value % HASH_SIZE;
     return hash_value;
 }
 
@@ -64,5 +68,5 @@ int put_on_hash_table(key_pair * new_value){
 }
 
 int get_on_hash_table(key_pair * value){
-
+    
 }
