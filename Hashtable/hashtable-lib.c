@@ -14,6 +14,24 @@ Colisions need to be handled with lists
 
 key_pair * hash_table[HASH_SIZE];
 
+int check_duplication(key_pair * list, char * key){
+
+
+    // return 1 if its a duplication
+    // return 0 if its not a duplication
+
+
+    // não sei se isto funciona assim FALTA TESTAR
+    while(list){
+        if(strcmp((*list).key, key) == 0){
+            return 1; // this key already exists
+        }
+        list = (*list).next;
+    }
+
+    return 0; // it means there's no repetion
+}
+
 unsigned int hash(char * key){
 
     /*******************************************
@@ -39,34 +57,106 @@ void initialize_hash_table(){
         hash_table[i] = NULL;
 }
 
-int put_on_hash_table(key_pair * new_value){
+int put_on_hash_table(char * key, char * value){
+    key_pair *old_head = NULL;
+    key_pair *new_key = calloc(1, sizeof(key_pair));
+    
 
-    // we probably will need to check if the value
-    // already exists
+    (*new_key).next = NULL;
+    (*new_key).key = malloc( ( strlen(key) + 1) * sizeof(char));
+    (*new_key).value = malloc( ( strlen(value) + 1) * sizeof(char));
 
-    //return 1 sucess
-    //return 0 value already existed
+    strcpy((*new_key).key, key);
+    strcpy((*new_key).value, value);
 
-    int hash_position = hash((*new_value).key);
-    if( hash_table[hash_position] != NULL)
-        (*hash_table)[hash_position] = (*new_value);
+    // return 1 sucess
+    // return 0 value already existed
+
+    int hash_position = hash(key);
+
+    // checking if its the first time on the hashtable
+    if( hash_table[hash_position] == NULL){
+        //putting the value on the hash tabble
+        hash_table[hash_position] = new_key;
+    }
     // handling colisions
     else{
-        bool check = true;
-        int new_position = hash_position + 1;
-        do{
-            if( hash_table[hash_position] != NULL){
-                (*hash_table)[hash_position] = (*new_value);
-                check = false;
-            }
-            else
-                new_position++;
-        } while(check);
+        // checking if the value already exists
+        if(check_duplication(hash_table[hash_position],key)){
+            return 0; // this key already exists
+        }
+        // putting the value on the hash table
+        old_head = hash_table[hash_position];
+        hash_table[hash_position] = new_key;
+        (*new_key).next = old_head;
     }
 
     return 1; // it means it was a success
 }
 
-int get_on_hash_table(key_pair * value){
-    
+int get_from_hash_table(char * key, char ** value){
+    char * new_value;
+    key_pair * key_pair;
+
+    // return 1 if it exists
+    // return 0 if it doesnt exist
+
+    int hash_position = hash((*key));
+    key_pair = hash_table[hash_position];
+    if( key_pair == NULL){
+        //putting the value on the hash tabble
+        printf("Key %s doesn't exist", *key);
+        return 0;
+    }
+
+    // searching for the key
+    while(key_pair){
+        if(strcmp((*key_pair).key, key) == 0){
+            return 1; // this key already exists
+        }
+        key_pair = (*key_pair).next;
+    }
+
+    if(key_pair){
+        new_value = calloc(strlen((*key_pair).key) + 1, sizeof(char));
+        strcpy(new_value,(*key_pair).key);
+        value = &new_value;
+        return 1;
+    }
+
+    return 0;
+}
+
+int delete_from_hash_table(char * key){
+    key_pair * key_before = NULL;
+    key_pair * key_pair = NULL;
+    // return 1 means that it was possible to delete
+    // return 0 means that it wasn't possible to delete
+
+
+    int hash_position = hash((*key));
+    key_pair = hash_table[hash_position];
+    if( key_pair == NULL){
+        //putting the value on the hash tabble
+        printf("Key %s doesn't exist", *key);
+        return 0;
+    }
+
+    // searching for the key 
+    while(key_pair){
+        if(strcmp((*key_pair).key, key) == 0)
+            break; // we found the key we want to delete
+        
+        key_before = key_pair;
+        key_pair = (*key_pair).next;
+    }
+
+    if(key_pair){
+        free((*key_pair).key);
+        free((*key_pair).value);
+        (*key_before).next = (*key_pair).next;
+        free(key_pair);
+    }
+
+    return 0;
 }
