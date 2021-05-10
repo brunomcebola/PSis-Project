@@ -31,10 +31,10 @@ int app_socket = -1;
 // TODO VER ERROS NOS RETURNS
 
 int establish_connection(char *group_id, char *secret) {
-    int type = 'C';
+	int type = 'C';
 	int bytes = 0;
 	int len = 0;
-    int response = 0;
+	int response = 0;
 
 	struct sockaddr_un app_addr;
 	struct sockaddr_un local_server_addr;
@@ -47,12 +47,14 @@ int establish_connection(char *group_id, char *secret) {
 
 	app_addr.sun_family = AF_UNIX;
 	sprintf(app_addr.sun_path, "/tmp/app_socket_%d", getpid());
-
 	unlink(app_addr.sun_path);
+
+	local_server_addr.sun_family = AF_UNIX;
+	sprintf(local_server_addr.sun_path, LOCAL_SERVER_ADRESS);
 
 	int err = bind(app_socket, (struct sockaddr *)&app_addr, sizeof(app_addr));
 	if (err == -1) {
-		perror("Error binding the application socket\n");
+		perror("Error binding the application socket");
 		exit(-1);  // arranjar erros
 	}
 
@@ -74,7 +76,7 @@ int establish_connection(char *group_id, char *secret) {
 		exit(-1);  // arranjar erros
 	}
 
-    len = (strlen(secret) + 1) * sizeof(char);
+	len = (strlen(secret) + 1) * sizeof(char);
 	bytes = write(app_socket, &len, sizeof(int));
 	if (bytes == 0) {
 		perror("Error write the group_id in the application");
@@ -86,29 +88,28 @@ int establish_connection(char *group_id, char *secret) {
 		exit(-1);  // arranjar erros
 	}
 
-    //saber se consegui conectar 
-    bytes = read(app_socket, &response, sizeof(int));
+	// saber se consegui conectar
+	bytes = read(app_socket, &response, sizeof(int));
 	if (bytes == -1) {
 		perror("Error reading the authentication side\n");
 		exit(-1);  // arranjar erros
 	}
-    switch (response)
-    {
-    case WRONG_SECRET:
-        close(app_socket);
-        app_socket = -1;
-        break;
-    
-    default:
-        break;
-    }
+	switch (response) {
+		case WRONG_SECRET:
+			close(app_socket);
+			app_socket = -1;
+			break;
+
+		default:
+			break;
+	}
 
 	return 0;
 }
 
 int put_value(char *key, char *value) {
 	char type = PUT;
-    int bytes = 0;
+	int bytes = 0;
 	int len = 0;
 	int response = 0;
 
@@ -153,11 +154,10 @@ int put_value(char *key, char *value) {
 		exit(-1);  // arranjar erros
 	}
 
-	bytes = read(app_socket, &response, sizeof(int) );
-	if(bytes == -1){
+	bytes = read(app_socket, &response, sizeof(int));
+	if (bytes == -1) {
 		perror("Error getting the reponse of the put");
 	}
-
 
 	return 1;
 }
@@ -229,7 +229,7 @@ int delete_value(char *key) {
 		exit(-1);  // arranjar erros
 	}
 
-	bytes = write(app_socket, key, len * sizeof(char) );
+	bytes = write(app_socket, key, len * sizeof(char));
 	if (bytes == 0) {
 		perror("Error write the secret in the application");
 		exit(-1);  // arranjar erros

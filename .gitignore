@@ -1,3 +1,4 @@
 *.o
 projecto-v1.pdf
-.vscode
+.vscode/
+test
