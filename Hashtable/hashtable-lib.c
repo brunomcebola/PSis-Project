@@ -12,7 +12,7 @@
 Colisions need to be handled with lists
 */
 
-key_pair * hash_table[HASH_SIZE];
+
 
 int check_duplication(key_pair * list, char * key){
 
@@ -30,6 +30,13 @@ int check_duplication(key_pair * list, char * key){
     }
 
     return 0; // it means there's no repetion
+}
+
+key_pair ** create_hash_table(){
+    key_pair ** hash_table;
+    hash_table = malloc(HASH_SIZE * sizeof(char *));
+
+    return hash_table;
 }
 
 unsigned int hash(char * key){
@@ -51,13 +58,13 @@ unsigned int hash(char * key){
     return hash_value;
 }
 
-void initialize_hash_table(){
+void initialize_hash_table(key_pair ** hash_table){
     // hash needs to start empy
     for(int i = 0; i < HASH_SIZE; i++)
         hash_table[i] = NULL;
 }
 
-int put_on_hash_table(char * key, char * value){
+int put_on_hash_table(key_pair ** hash_table, char * key, char * value){
     key_pair *old_head = NULL;
     key_pair *new_key = calloc(1, sizeof(key_pair));
     
@@ -94,7 +101,7 @@ int put_on_hash_table(char * key, char * value){
     return 1; // it means it was a success
 }
 
-int get_from_hash_table(char * key, char ** value){
+int get_from_hash_table(key_pair ** hash_table, char * key, char ** value){
     char * new_value;
     key_pair * key_pair;
 
@@ -127,7 +134,7 @@ int get_from_hash_table(char * key, char ** value){
     return 0;
 }
 
-int delete_from_hash_table(char * key){
+int delete_from_hash_table(key_pair ** hash_table, char * key){
     key_pair * key_before = NULL;
     key_pair * key_pair = NULL;
     // return 1 means that it was possible to delete

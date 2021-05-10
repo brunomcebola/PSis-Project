@@ -9,10 +9,13 @@ typedef struct _key_pair{
 }key_pair;
 
 unsigned int hash(char * key);
-void initialize_hash_table();
-int put_on_hash_table(char * key, char * value);
-int get_from_hash_table(char * key, char ** value);
-int delete_from_hash_table(char * value);
+
+key_pair ** create_hash_table()
+void initialize_hash_table(key_pair ** hash_table);
+
+int put_on_hash_table(key_pair ** hash_table, char * key, char * value);
+int get_from_hash_table(key_pair ** hash_table, char * key, char ** value);
+int delete_from_hash_table(key_pair ** hash_table, char * value);
 
 
 #endif
