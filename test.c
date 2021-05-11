@@ -7,26 +7,33 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-void *getstuff(void *arg) {
-	char t = '\0';
-
-	while (1) {
-		t = getchar();
-		printf("Thread: %c\n", t);
-	}
-    pthread_exit(0);
-}
+#include "./Hashtable/hashtable-lib.h"
 
 int main() {
-	char t = '\0';
 
-	pthread_t getstuff_thread;
-	pthread_create(&getstuff_thread, NULL, getstuff, NULL);
+	char  *tester;
 
-	while (1) {
-		t = getchar();
-		printf("Main: %c\n", t);
-	}
+	key_pair ** my_hash_table;
+
+	my_hash_table = create_hash_table();
+
+	put_on_hash_table(my_hash_table, "boas", "4321");
+	put_on_hash_table(my_hash_table, "boas1", "1234");
+
+	get_from_hash_table(my_hash_table, "boas", &tester);
+
+	printf("My value on get is %s\n\n\n", tester);
+
+
+	printf_hash_table(my_hash_table);
+
+	delete_from_hash_table(my_hash_table,"boas");
+
+	printf("\n\n\n");
+
+	printf_hash_table(my_hash_table);
+
+
 
 	return 0;
 }
