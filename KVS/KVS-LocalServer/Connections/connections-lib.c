@@ -110,27 +110,29 @@ void *connection_handler(void *conn) {
 
 void *connections_listener(void *arg) {
 	int sockaddr_size = sizeof(struct sockaddr_un);
-	connection new_connection;
+	connection *new_connection = NULL;
 
 	printf("Ready to receive connections!\n\n");
 
 	while (1) {
-		new_connection.socket = accept(local_server_unix_socket, (struct sockaddr *)&(new_connection.addr), (socklen_t *)&sockaddr_size);
-		if (new_connection.socket == -1) {
+		new_connection = calloc(1, sizeof(connection));
+
+		new_connection->socket = accept(local_server_unix_socket, (struct sockaddr *)&(new_connection->addr), (socklen_t *)&sockaddr_size);
+		if (new_connection->socket == -1) {
 			perror("");
 			exit(-1);
 		} else {
 			printf("New connection established!\n\n");
 
 			if (connections_list == NULL) {
-				new_connection.next = NULL;
+				new_connection->next = NULL;
 			} else {
-				new_connection.next = connections_list;
+				new_connection->next = connections_list;
 			}
 
-			connections_list = &new_connection;
+			connections_list = new_connection;
 
-			pthread_create(&(new_connection.thread), NULL, connection_handler, &new_connection);
+			pthread_create(&(new_connection->thread), NULL, connection_handler, new_connection);
 		}
 	}
 }
