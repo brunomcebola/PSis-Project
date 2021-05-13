@@ -203,7 +203,7 @@ int get_value(char *key, char **value) {
 	// tenho a impressão que isto está errado
 	strcpy(*value, response);
 
-	value = &response;
+	*value = response;
 
 	return 1;
 }
