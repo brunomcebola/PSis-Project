@@ -8,6 +8,12 @@
 
 #include "hashtable-lib.h"
 
+typedef struct _key_pair{
+    char * key;
+    char * value;
+    struct _key_pair * next;
+}key_pair;
+
 /*
 Colisions need to be handled with lists
 */

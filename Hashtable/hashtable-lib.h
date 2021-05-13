@@ -2,11 +2,7 @@
 
 #define _HASHTABLE_LIB_H
 
-typedef struct _key_pair{
-    char * key;
-    char * value;
-    struct _key_pair * next;
-}key_pair;
+typedef struct _key_pair key_pair;
 
 unsigned int hash(char * key);
 
