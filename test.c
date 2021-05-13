@@ -14,6 +14,8 @@ int main() {
 
 	int p = establish_connection(id, secret);
 
+	printf("Code: %d\n", p);
+
 	while (1) {
 	}
 

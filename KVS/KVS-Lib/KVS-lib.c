@@ -31,7 +31,6 @@ int app_socket = -1;
 // TODO VER ERROS NOS RETURNS
 
 int establish_connection(char *group_id, char *secret) {
-	int type = 'C';
 	int bytes = 0;
 	int len = 0;
 	int response = 0;
@@ -82,7 +81,7 @@ int establish_connection(char *group_id, char *secret) {
 		perror("Error write the group_id in the application");
 		exit(-1);  // arranjar erros
 	}
-	bytes = write(app_socket, &secret, len);
+	bytes = write(app_socket, secret, len);
 	if (bytes == 0) {
 		perror("Error write the secret in the application");
 		exit(-1);  // arranjar erros
@@ -104,7 +103,7 @@ int establish_connection(char *group_id, char *secret) {
 			break;
 	}
 
-	return 0;
+	return response;
 }
 
 int put_value(char *key, char *value) {
