@@ -118,7 +118,7 @@ int put_value(char *key, char *value) {
 	}
 
 	// letting the local_sever know that we are putting a value
-	bytes = write(app_socket, &type, sizeof(type));
+	bytes = write(app_socket, &type, sizeof(char));
 	if (bytes == 0) {
 		perror("Error write the secret in the application");
 		exit(-1);  // arranjar erros
@@ -141,13 +141,13 @@ int put_value(char *key, char *value) {
 	// writing into the stream the value
 
 	len = strlen(value) + 1;
-	bytes = write(app_socket, &len, len * sizeof(char));
+	bytes = write(app_socket, &len, sizeof(int));
 	if (bytes == 0) {
 		perror("Error write the secret in the application");
 		exit(-1);  // arranjar erros
 	}
 
-	bytes = write(app_socket, value, len);
+	bytes = write(app_socket, value, len * sizeof(char));
 	if (bytes == 0) {
 		perror("Error write the secret in the application");
 		exit(-1);  // arranjar erros
