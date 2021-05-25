@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -9,44 +10,53 @@
 #include <unistd.h>
 
 #include "./Connections/connections-lib.h"
+#include "./Console/console-lib.h"
 
-/*void console() {
-	
-	int order_number = 0;
+void handle_options(int option) {
+	return;
 
-	while (1) {
-		order_number = home_screen(&order_number);
+	char *group_id, buffer[INT_MAX];
 
-		switch (order_number) {
-			case 1:
-				// Create Group functions
-				break;
-			case 2:
-				// Delete Group Functions
-				break;
-			case 3:
-				// Show Group Info Functions
-				break;
-			case 4:
-				// Show Application Status Functions
-				break;
-			default:
-				printf("You didn't choose the right option, try again.\n");
-				break;
-		}
+	switch(option) {
+		case 1: // create group
+			fgets(buffer, INT_MAX - 1, stdin);
+
+			group_id = calloc(strlen(buffer) + 1, sizeof(char));
+			strncpy(group_id, buffer, strlen(buffer));
+
+			create_group(group_id);
+
+			free(group_id);
+			break;
+
+		case 2: // delete group 
+			/* code */
+			break;
+
+		case 3:
+			/* code */
+			break;
+
+		case 4:
+			/* code */
+			break;
+
+		default:
+			break;
 	}
-
-	pthread_exit(0);  // check later if we need to return anything in this thread
-}*/
+}
 
 int main() {
+	int option = 0;
+
 	setup_connections();
 
 	start_connections();
 
-	// TODO local_server console, after being started
+	while(1) {
+		option = menu();
 
-	while (1) {
+		handle_options(1);
 	}
 
 	return 0;

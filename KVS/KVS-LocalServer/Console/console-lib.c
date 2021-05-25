@@ -1,28 +1,28 @@
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <unistd.h>
-#include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/un.h>
+#include <unistd.h>
 
-#include <pthread.h>
+int menu() {
+	int option;
 
+	printf("---------------------------------\n");
+	printf("------------ Console ------------\n");
+	printf("---------------------------------\n\n");
 
-int home_screen(int * number_order){
+	printf("What do you want to do?\n");
+	printf("-- 1) Create Group --------------\n");
+	printf("-- 2) Delete Group --------------\n");
+	printf("-- 3) Show Group Info -----------\n");
+	printf("-- 4) Show Application Status ---\n\n");
 
-    printf("---------------------\n");
-    printf("-------Console-------\n");
-    printf("---------------------\n");
+	printf("Option: ");
 
-    printf("What do you want to do ?\n");
-    printf("-- Create Group ------------- 1\n");
-    printf("-- Delete Group ------------- 2\n");
-    printf("-- Show Group Info ---------- 3\n");
-    printf("-- Show Application Status -- 4\n");
+	scanf("%d", &option);
 
-    scanf("%d", number_order);
-
-    return (*number_order);
+	return option;
 }

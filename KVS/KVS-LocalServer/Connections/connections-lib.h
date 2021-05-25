@@ -4,6 +4,9 @@
 
 void setup_connections();
 void start_connections();
-// void stop_connections();
+
+//
+
+char* create_group(char* group_id);
 
 #endif

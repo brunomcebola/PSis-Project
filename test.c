@@ -1,3 +1,4 @@
+#include <netinet/in.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,11 +8,11 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "./Hashtable/hashtable-lib.h"
 #include "./KVS/KVS-Lib/KVS-lib.h"
 
 int main() {
 	char *secret = "adeus", *id = "ola";
+	char** value = calloc(1, sizeof(char*));
 
 	int p = establish_connection(id, secret);
 
@@ -19,7 +20,11 @@ int main() {
 
 	put_value("nome", "Bruno Cebola");
 
-	while (1) {
+	get_value("nome", value);
+
+	printf("Nome: %s\n", *value);
+
+	while(1) {
 	}
 
 	return 0;
