@@ -1,5 +1,6 @@
 #include "./connections-lib.h"
 
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -22,7 +23,7 @@ typedef struct _connection_t {
 } connection_t;
 
 typedef struct _group {
-	char group_id[MAX_ID + 1];
+	char group_id[MAX_GROUP_ID + 1];
 	key_pair** hash_table;
 	struct _group* next;
 } group_t;
@@ -127,7 +128,7 @@ void* connection_handler(void* connection) {
 	int len = sizeof(struct sockaddr_in);
 	int group_id_len = 0, secret_len = 0;
 	char operation_type = '\0';
-	access_credentials group_auth_info;
+	access_packet group_auth_info;
 	group_t* group;
 
 	// receive info from app
@@ -139,7 +140,7 @@ void* connection_handler(void* connection) {
 		exit(-2);
 	}
 
-	bytes = read(((connection_t*)connection)->socket, group_auth_info.id, group_id_len);
+	bytes = read(((connection_t*)connection)->socket, group_auth_info.group_id, group_id_len);
 	if(bytes == -1) {
 		perror("");
 		exit(-1);
@@ -194,7 +195,7 @@ void* connection_handler(void* connection) {
 	group = groups_list;
 
 	while(group != NULL) {
-		if(strcmp(group->group_id, group_auth_info.id) == 0) {
+		if(strcmp(group->group_id, group_auth_info.group_id) == 0) {
 			break;
 		}
 		group = group->next;
@@ -203,7 +204,7 @@ void* connection_handler(void* connection) {
 	if(group == NULL) {
 		group = calloc(1, sizeof(group_t));
 
-		strncpy(group->group_id, group_auth_info.id, MAX_ID);
+		strncpy(group->group_id, group_auth_info.group_id, MAX_GROUP_ID);
 
 		group->hash_table = create_hash_table();
 
@@ -273,11 +274,11 @@ void setup_connections() {
 
 	apps_auth_server_inet_socket_addr.sin_family = AF_INET;
 	apps_auth_server_inet_socket_addr.sin_port = htons(APPS_AUTH_SERVER_PORT);
-	apps_auth_server_inet_socket_addr.sin_addr.s_addr = INADDR_ANY;
+	apps_auth_server_inet_socket_addr.sin_addr.s_addr = inet_addr(AUTH_SERVER_ADDRESS);
 
 	console_auth_server_inet_socket_addr.sin_family = AF_INET;
 	console_auth_server_inet_socket_addr.sin_port = htons(CONSOLE_AUTH_SERVER_PORT);
-	console_auth_server_inet_socket_addr.sin_addr.s_addr = INADDR_ANY;
+	console_auth_server_inet_socket_addr.sin_addr.s_addr = inet_addr(AUTH_SERVER_ADDRESS);
 
 	// inicialização do servidor local
 
@@ -302,7 +303,7 @@ void setup_connections() {
 	return;
 }
 
-//
+// console handling functions
 
 char* create_group(char* group_id) {
 	group_t* group = groups_list;
@@ -322,7 +323,7 @@ char* create_group(char* group_id) {
 
 	if(group == NULL) {
 		operation.type = POST;
-		strncpy(operation.id, group_id, MAX_ID);
+		strncpy(operation.group_id, group_id, MAX_GROUP_ID);
 
 		bytes = sendto(local_server_inet_socket,
 					   &operation,
@@ -348,7 +349,7 @@ char* create_group(char* group_id) {
 
 		group = calloc(1, sizeof(group_t));
 
-		strncpy(group->group_id, group_id, MAX_ID);
+		strncpy(group->group_id, group_id, MAX_GROUP_ID);
 
 		group->hash_table = create_hash_table();
 

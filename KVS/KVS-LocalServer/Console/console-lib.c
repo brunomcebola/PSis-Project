@@ -41,7 +41,7 @@ void create_group_UI() {
 		if(strlen(group_id) == 0) {
 			printf(ANSI_RED "Please provide a group id!\n\n" ANSI_RESET);
 			retype = 1;
-		} else if(strlen(group_id) > MAX_ID) {
+		} else if(strlen(group_id) > MAX_GROUP_ID) {
 			printf(ANSI_RED "The group id can have a max of 1024 chars!\n\n" ANSI_RESET);
 			retype = 1;
 		}

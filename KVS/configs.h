@@ -19,17 +19,17 @@
 
 // commun structs
 
-#define MAX_ID 1024
+#define MAX_GROUP_ID 1024
 #define MAX_SECRET 256
 
 typedef struct {
-	char id[MAX_ID + 1];
+	char group_id[MAX_GROUP_ID + 1];
 	char secret[MAX_SECRET + 1];
-} access_credentials;
+} access_packet;
 
 typedef struct {
 	char type;
-	char id[MAX_ID + 1];
+	char group_id[MAX_GROUP_ID + 1];
 } operation_packet;
 
 #endif

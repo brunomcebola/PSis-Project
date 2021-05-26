@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -67,7 +68,7 @@ void* console_handler(void* arg) {
 
 		switch(operation.type) {
 			case POST: // create group
-				create_group(&local_server_addr, operation.id);
+				create_group(&local_server_addr, operation.group_id);
 				break;
 			case DEL: // delete group
 				// code
@@ -87,7 +88,7 @@ void apps_handler() {
 	int bytes = -1; // checking predifined functions errors
 	int code = -1; // error handling
 	int len = 0;
-	access_credentials group_auth_info;
+	access_packet group_auth_info;
 	struct sockaddr_in local_server_addr;
 
 	len = sizeof(struct sockaddr_in);
@@ -151,11 +152,11 @@ int setup_server() {
 
 	// setting up the server info
 	apps_auth_server_addr.sin_family = AF_INET;
-	apps_auth_server_addr.sin_addr.s_addr = INADDR_ANY;
+	apps_auth_server_addr.sin_addr.s_addr = inet_addr(AUTH_SERVER_ADDRESS);
 	apps_auth_server_addr.sin_port = htons(APPS_AUTH_SERVER_PORT);
 
 	console_auth_server_addr.sin_family = AF_INET;
-	console_auth_server_addr.sin_addr.s_addr = INADDR_ANY;
+	console_auth_server_addr.sin_addr.s_addr = inet_addr(AUTH_SERVER_ADDRESS);
 	console_auth_server_addr.sin_port = htons(CONSOLE_AUTH_SERVER_PORT);
 
 	// bind the sockets
