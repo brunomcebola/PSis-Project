@@ -10,16 +10,9 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include "../../configs.h"
+
 #include "../../../Hashtable/hashtable-lib.h"
-
-#define LOCAL_SERVER_ADRESS "/tmp/kvs_local_server_socket"
-#define AUTH_SERVER_ADDRESS "127.0.0.1"
-#define AUTH_SERVER_PORT 3000
-
-#define PUT 'P'
-#define GET 'G'
-#define DEL 'D'
-#define RCB 'R'
 
 typedef struct _connection_t {
 	struct sockaddr_un addr;
@@ -29,15 +22,10 @@ typedef struct _connection_t {
 } connection_t;
 
 typedef struct _group {
-	char* group_id;
+	char group_id[MAX_ID + 1];
 	key_pair** hash_table;
 	struct _group* next;
 } group_t;
-
-typedef struct {
-	char id[1024];
-	char secret[256];
-} group_auth;
 
 connection_t* connections_list = NULL;
 group_t* groups_list = NULL;
@@ -46,7 +34,8 @@ pthread_t listening_thread;
 int local_server_unix_socket;
 int local_server_inet_socket;
 struct sockaddr_un local_server_unix_socket_addr;
-struct sockaddr_in auth_server_inet_socket_addr;
+struct sockaddr_in apps_auth_server_inet_socket_addr;
+struct sockaddr_in console_auth_server_inet_socket_addr;
 
 void put_value(void* connection, group_t* group) {
 	int bytes = -1, code = 0;
@@ -138,7 +127,7 @@ void* connection_handler(void* connection) {
 	int len = sizeof(struct sockaddr_in);
 	int group_id_len = 0, secret_len = 0;
 	char operation_type = '\0';
-	group_auth group_auth_info;
+	access_credentials group_auth_info;
 	group_t* group;
 
 	// receive info from app
@@ -175,7 +164,7 @@ void* connection_handler(void* connection) {
 				   &group_auth_info,
 				   sizeof(group_auth_info),
 				   MSG_CONFIRM,
-				   (const struct sockaddr*)&auth_server_inet_socket_addr,
+				   (const struct sockaddr*)&apps_auth_server_inet_socket_addr,
 				   len);
 	if(bytes == -1) {
 		perror("");
@@ -183,7 +172,12 @@ void* connection_handler(void* connection) {
 	}
 
 	// handle response from auth server
-	bytes = recvfrom(local_server_inet_socket, &code, sizeof(int), MSG_WAITALL, (struct sockaddr*)&auth_server_inet_socket_addr, &len);
+	bytes = recvfrom(local_server_inet_socket,
+					 &code,
+					 sizeof(int),
+					 MSG_WAITALL,
+					 (struct sockaddr*)&apps_auth_server_inet_socket_addr,
+					 &len);
 	if(bytes == -1) {
 		perror("");
 		exit(-1);
@@ -209,8 +203,7 @@ void* connection_handler(void* connection) {
 	if(group == NULL) {
 		group = calloc(1, sizeof(group_t));
 
-		group->group_id = calloc(group_id_len, sizeof(char));
-		strcpy(group->group_id, group_auth_info.id);
+		strncpy(group->group_id, group_auth_info.id, MAX_ID);
 
 		group->hash_table = create_hash_table();
 
@@ -248,7 +241,9 @@ void* connections_listener(void* arg) {
 	while(1) {
 		connection = calloc(1, sizeof(connection_t));
 
-		connection->socket = accept(local_server_unix_socket, (struct sockaddr*)&(connection->addr), (socklen_t*)&sockaddr_size);
+		connection->socket = accept(local_server_unix_socket,
+									(struct sockaddr*)&(connection->addr),
+									(socklen_t*)&sockaddr_size);
 		if(connection->socket == -1) {
 			perror("");
 			exit(-1);
@@ -269,19 +264,20 @@ void start_connections() {
 }
 
 void setup_connections() {
-	//printf("Starting server...\n\n");
-
 	// inicialização da ligação ao servidor de autenticação
-
 	local_server_inet_socket = socket(AF_INET, SOCK_DGRAM, 0);
 	if(local_server_inet_socket == -1) {
 		perror("");
 		exit(-1);
 	}
 
-	auth_server_inet_socket_addr.sin_family = AF_INET;
-	auth_server_inet_socket_addr.sin_port = htons(AUTH_SERVER_PORT);
-	auth_server_inet_socket_addr.sin_addr.s_addr = INADDR_ANY;
+	apps_auth_server_inet_socket_addr.sin_family = AF_INET;
+	apps_auth_server_inet_socket_addr.sin_port = htons(APPS_AUTH_SERVER_PORT);
+	apps_auth_server_inet_socket_addr.sin_addr.s_addr = INADDR_ANY;
+
+	console_auth_server_inet_socket_addr.sin_family = AF_INET;
+	console_auth_server_inet_socket_addr.sin_port = htons(CONSOLE_AUTH_SERVER_PORT);
+	console_auth_server_inet_socket_addr.sin_addr.s_addr = INADDR_ANY;
 
 	// inicialização do servidor local
 
@@ -295,7 +291,9 @@ void setup_connections() {
 	sprintf(local_server_unix_socket_addr.sun_path, LOCAL_SERVER_ADRESS);
 	unlink(LOCAL_SERVER_ADRESS);
 
-	int err = bind(local_server_unix_socket, (struct sockaddr*)&(local_server_unix_socket_addr), sizeof(local_server_unix_socket_addr));
+	int err = bind(local_server_unix_socket,
+				   (struct sockaddr*)&(local_server_unix_socket_addr),
+				   sizeof(local_server_unix_socket_addr));
 	if(err == -1) {
 		perror("");
 		exit(-1);
@@ -308,6 +306,12 @@ void setup_connections() {
 
 char* create_group(char* group_id) {
 	group_t* group = groups_list;
+	int bytes = -1;
+	int len = sizeof(struct sockaddr_in);
+	operation_packet operation;
+	char* secret = NULL;
+
+	secret = calloc(MAX_SECRET + 1, sizeof(char));
 
 	while(group != NULL) {
 		if(strcmp(group->group_id, group_id) == 0) {
@@ -317,17 +321,43 @@ char* create_group(char* group_id) {
 	}
 
 	if(group == NULL) {
+		operation.type = POST;
+		strncpy(operation.id, group_id, MAX_ID);
+
+		bytes = sendto(local_server_inet_socket,
+					   &operation,
+					   sizeof(operation),
+					   MSG_CONFIRM,
+					   (struct sockaddr*)&console_auth_server_inet_socket_addr,
+					   len);
+		if(bytes == -1) {
+			perror("");
+			exit(-1);
+		}
+
+		bytes = recvfrom(local_server_inet_socket,
+						 secret,
+						 MAX_SECRET + 1,
+						 MSG_WAITALL,
+						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
+						 &len);
+		if(bytes == -1) {
+			perror("");
+			exit(-1);
+		}
+
 		group = calloc(1, sizeof(group_t));
 
-		group->group_id = calloc(strlen(group_id) + 1, sizeof(char));
-		strcpy(group->group_id, group_id);
+		strncpy(group->group_id, group_id, MAX_ID);
 
 		group->hash_table = create_hash_table();
 
 		group->next = groups_list;
 
 		groups_list = group;
+	} else {
+		// TODO: decide if returns secret or error
 	}
 
-	return "ola";
+	return secret;
 }

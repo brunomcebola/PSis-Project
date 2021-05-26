@@ -8,6 +8,8 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include "../configs.h"
+
 /*************************************
  * Para não estar sempre a criar socket,
  * fazer list, array ou hash com "todos" os
@@ -16,19 +18,13 @@
  * número igual ao número de aplicações
  *************************************/
 
-#define LOCAL_SERVER_ADRESS "/tmp/kvs_local_server_socket"
 #define RESPONSE_LEN 10
-
-#define PUT 'P'
-#define GET 'G'
-#define DEL 'D'
-#define RCB 'R'
 
 #define WRONG_SECRET -1
 
 int app_socket = -1;
 
-// TODO VER ERROS NOS RETURNS
+// TODO: VER ERROS NOS RETURNS
 
 int establish_connection(char* group_id, char* secret) {
 	int bytes = 0;

@@ -2,6 +2,6 @@
 
 #define _KVS_LIB_H
 
-int menu();
+int UI();
 
 #endif

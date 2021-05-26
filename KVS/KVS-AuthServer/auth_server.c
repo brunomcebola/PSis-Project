@@ -8,70 +8,71 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include "../configs.h"
+
 #include "../../Hashtable/hashtable-lib.h"
 
-#define AUTH_SERVER_ADDRESS "127.0.0.1"
-#define AUTH_SERVER_PORT 3000
-#define AUTH_CONSOLE_SERVER_PORT 3002
+int apps_auth_server_socket = -1;
+int console_auth_server_socket = -1;
 
-typedef struct {
-	char id[1024];
-	char secret[256];
-} group_auth;
+key_pair** groups;
 
-int auth_server_socket = -1;
+// TODO: fazer a funcionalidade de gerar uma string randoom com 256 chars
+char* generate_secret() {
+	return "o meu segredo bue fixe!";
+}
 
-struct sockaddr_in local_server_addr;
-
-void* console_Auth_server(void* arg) {
+void create_group(struct sockaddr_in* addr, char* group_id) {
 	int bytes = -1;
-	int opt = 1;
-	char type = 'N';
+	char secret[MAX_SECRET + 1];
 
-	int len = sizeof(struct sockaddr_in);
+	strncpy(secret, generate_secret(), MAX_SECRET);
 
-	struct sockaddr_in auth_console_server_addr;
+	put_on_hash_table(groups, group_id, secret);
 
-	printf("Starting console server...\n\n");
-
-	// getting the socket ready
-	if((auth_server_socket = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
+	bytes = sendto(console_auth_server_socket,
+				   secret,
+				   sizeof(secret),
+				   MSG_CONFIRM,
+				   (struct sockaddr*)addr,
+				   sizeof(struct sockaddr_in));
+	if(bytes == -1) {
 		perror("");
 		exit(-1);
 	}
 
-	// "unlink" of the inet
-	if(setsockopt(auth_server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-		perror("");
-		exit(-1);
-	}
-	// setting up the server info
-	auth_console_server_addr.sin_family = AF_INET;
-	auth_console_server_addr.sin_addr.s_addr = INADDR_ANY;
-	auth_console_server_addr.sin_port = htons(AUTH_CONSOLE_SERVER_PORT);
+	return;
+}
 
-	if(bind(auth_server_socket, (struct sockaddr*)&auth_console_server_addr, sizeof(auth_console_server_addr)) < 0) {
-		perror("");
-		exit(-1);
-	}
+void* console_handler(void* arg) {
+	int bytes = -1;
+	char operation_type = '\0';
+	int len = 0;
+	operation_packet operation;
+	struct sockaddr_in local_server_addr;
 
-	printf("Console server up and running!\n\n");
+	len = sizeof(struct sockaddr_in);
 
 	while(1) {
-		bytes = recvfrom(auth_server_socket, &type, sizeof(char), MSG_WAITALL, (struct sockaddr*)&local_server_addr, &len);
+		bytes = recvfrom(console_auth_server_socket,
+						 &operation,
+						 sizeof(operation),
+						 MSG_WAITALL,
+						 (struct sockaddr*)&local_server_addr,
+						 &len);
 		if(bytes == -1) {
 			perror("");
 			exit(-1);
 		}
 
-		switch(type) {
-			case 'C': // create group
+		switch(operation.type) {
+			case POST: // create group
+				create_group(&local_server_addr, operation.id);
+				break;
+			case DEL: // delete group
 				// code
 				break;
-			case 'D': // delete group
-				// code
-				break;
-			case 'S': // giving group secret (group info of console)
+			case GET: // giving group secret (group info of console)
 				// code
 				break;
 
@@ -82,57 +83,22 @@ void* console_Auth_server(void* arg) {
 	pthread_exit(NULL);
 }
 
-int setup_server() {
-	int opt = 1;
-
-	struct sockaddr_in auth_server_addr;
-
-	printf("Starting server...\n\n");
-
-	// getting the socket ready
-	if((auth_server_socket = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
-		perror("");
-		exit(-1);
-	}
-
-	// "unlink" of the inet
-	if(setsockopt(auth_server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-		perror("");
-		exit(-1);
-	}
-	// setting up the server info
-	auth_server_addr.sin_family = AF_INET;
-	auth_server_addr.sin_addr.s_addr = INADDR_ANY;
-	auth_server_addr.sin_port = htons(AUTH_SERVER_PORT);
-
-	if(bind(auth_server_socket, (struct sockaddr*)&auth_server_addr, sizeof(auth_server_addr)) < 0) {
-		perror("");
-		exit(-1);
-	}
-
-	printf("Server up and running!\n\n");
-}
-
-int main(int argc, char const* argv[]) {
-
+void apps_handler() {
 	int bytes = -1; // checking predifined functions errors
 	int code = -1; // error handling
-	int group_id_len = 0, secret_len = 0;
-	char *group_id = NULL, *secret = NULL;
+	int len = 0;
+	access_credentials group_auth_info;
+	struct sockaddr_in local_server_addr;
 
-	int len = sizeof(struct sockaddr_in);
-
-	group_auth group_auth_info;
-
-	pthread_t console_server_thread;
-
-	setup_server();
-	pthread_create(&console_server_thread, NULL, console_Auth_server, NULL);
-	// key_pair **groups = create_hash_table();
+	len = sizeof(struct sockaddr_in);
 
 	while(1) {
-		bytes = recvfrom(
-			auth_server_socket, &group_auth_info, sizeof(group_auth_info), MSG_WAITALL, (struct sockaddr*)&local_server_addr, &len);
+		bytes = recvfrom(apps_auth_server_socket,
+						 &group_auth_info,
+						 sizeof(group_auth_info),
+						 MSG_WAITALL,
+						 (struct sockaddr*)&local_server_addr,
+						 &len);
 		if(bytes == -1) {
 			perror("");
 			exit(-1);
@@ -141,8 +107,86 @@ int main(int argc, char const* argv[]) {
 		// handling auth_server thingys
 		code = 10;
 
-		sendto(auth_server_socket, &code, sizeof(int), MSG_CONFIRM, (struct sockaddr*)&local_server_addr, len);
+		sendto(apps_auth_server_socket,
+			   &code,
+			   sizeof(int),
+			   MSG_CONFIRM,
+			   (struct sockaddr*)&local_server_addr,
+			   len);
+	}
+}
+
+int setup_server() {
+	int opt = 1;
+
+	struct sockaddr_in apps_auth_server_addr;
+	struct sockaddr_in console_auth_server_addr;
+
+	printf("Starting server...\n\n");
+
+	// sockets creation
+	if((apps_auth_server_socket = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
+		perror("");
+		exit(-1);
+	}
+	if((console_auth_server_socket = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
+		perror("");
+		exit(-1);
 	}
 
-	pthread_exit(NULL);
+	// "unlink" inet sockets
+	if(setsockopt(
+		   apps_auth_server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+		perror("");
+		exit(-1);
+	}
+	if(setsockopt(console_auth_server_socket,
+				  SOL_SOCKET,
+				  SO_REUSEADDR | SO_REUSEPORT,
+				  &opt,
+				  sizeof(opt))) {
+		perror("");
+		exit(-1);
+	}
+
+	// setting up the server info
+	apps_auth_server_addr.sin_family = AF_INET;
+	apps_auth_server_addr.sin_addr.s_addr = INADDR_ANY;
+	apps_auth_server_addr.sin_port = htons(APPS_AUTH_SERVER_PORT);
+
+	console_auth_server_addr.sin_family = AF_INET;
+	console_auth_server_addr.sin_addr.s_addr = INADDR_ANY;
+	console_auth_server_addr.sin_port = htons(CONSOLE_AUTH_SERVER_PORT);
+
+	// bind the sockets
+	if(bind(apps_auth_server_socket,
+			(struct sockaddr*)&apps_auth_server_addr,
+			sizeof(apps_auth_server_addr)) < 0) {
+		perror("");
+		exit(-1);
+	}
+	if(bind(console_auth_server_socket,
+			(struct sockaddr*)&console_auth_server_addr,
+			sizeof(console_auth_server_addr)) < 0) {
+		perror("");
+		exit(-1);
+	}
+
+	//create hashtable to store the groups
+
+	groups = create_hash_table();
+
+	printf("Starting console server...\n\n");
+}
+
+int main(int argc, char const* argv[]) {
+	pthread_t console_handler_thread;
+
+	setup_server();
+
+	pthread_create(&console_handler_thread, NULL, console_handler, NULL);
+
+	apps_handler();
+
+	return 0;
 }
