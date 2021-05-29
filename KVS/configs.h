@@ -16,6 +16,7 @@
 #define DEL 'D'
 #define RCB 'R'
 #define POST 'O'
+#define KILL 'K'
 
 // commun structs
 

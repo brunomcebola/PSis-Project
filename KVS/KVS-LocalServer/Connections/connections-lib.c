@@ -123,6 +123,37 @@ void get_value(void* connection, group_t* group) {
 	free(value);
 }
 
+void delete_value(void* connection, group_t* group) {
+	int bytes = -1, code = 0;
+	int key_len = 0;
+	char* key = NULL;
+
+	bytes = read(((connection_t*)connection)->socket, &key_len, sizeof(int));
+	if(bytes == -1) {
+		perror("");
+		exit(-1);
+	}
+
+	key = calloc(key_len, sizeof(char));
+	bytes = read(((connection_t*)connection)->socket, key, key_len);
+	if(bytes == -1) {
+		perror("");
+		exit(-1);
+	}
+
+	delete_from_hash_table(group->hash_table, key);
+
+	code = 10;
+
+	bytes = write(((connection_t*)connection)->socket, &code, sizeof(int));
+	if(bytes == -1) {
+		perror("");
+		exit(-1);
+	}
+
+	free(key);
+}
+
 void* connection_handler(void* connection) {
 	int bytes = -1, code = 0;
 	int len = sizeof(struct sockaddr_in);
@@ -229,6 +260,10 @@ void* connection_handler(void* connection) {
 
 				case GET:
 					get_value(connection, group);
+					break;
+
+				case DEL:
+					delete_value(connection, group);
 					break;
 
 				default:

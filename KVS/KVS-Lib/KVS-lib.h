@@ -84,7 +84,7 @@ int get_value(char* key, char** value);
  *   For each possible error students should define and return a different
  *   return value.
  */
-int delete_key(char* key);
+int delete_value(char* key);
 
 /*
  * Description:

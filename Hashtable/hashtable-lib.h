@@ -12,7 +12,7 @@ key_pair ** create_hash_table();
 
 int put_on_hash_table(key_pair ** hash_table, char * key, char * value);
 int get_from_hash_table(key_pair ** hash_table, char * key, char ** value);
-int delete_from_hash_table(key_pair ** hash_table, char * value);
+int delete_from_hash_table(key_pair ** hash_table, char * key);
 int get_number_of_entries(key_pair ** hash_table);
 
 #endif

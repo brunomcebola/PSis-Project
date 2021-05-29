@@ -136,7 +136,6 @@ int put_value(char* key, char* value) {
 	}
 
 	// writing into the stream the value
-
 	len = strlen(value) + 1;
 	bytes = write(app_socket, &len, sizeof(int));
 	if(bytes == 0) {
@@ -154,8 +153,6 @@ int put_value(char* key, char* value) {
 	if(bytes == -1) {
 		perror("Error getting the reponse of the put");
 	}
-
-	printf("%d\n", response);
 
 	return 1;
 }
@@ -201,8 +198,10 @@ int get_value(char* key, char** value) {
 }
 
 int delete_value(char* key) {
-	int bytes = 0, len = 0;
 	char type = DEL;
+	int bytes = 0;
+	int len = 0;
+	int response = -1;
 
 	// letting the local_sever know that we are deleting a value
 	bytes = write(app_socket, &type, sizeof(type));
@@ -212,7 +211,6 @@ int delete_value(char* key) {
 	}
 
 	// deleting the value
-
 	len = strlen(key) + 1;
 	bytes = write(app_socket, &len, sizeof(int));
 	if(bytes == 0) {
@@ -226,9 +224,7 @@ int delete_value(char* key) {
 		exit(-1); // arranjar erros
 	}
 
-	int response = -1;
-
-	bytes = read(app_socket, &response, sizeof(response));
+	bytes = read(app_socket, &response, sizeof(int));
 	if(bytes == -1) {
 		perror("Error reading from the local server");
 	}
