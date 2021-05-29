@@ -269,7 +269,7 @@ int register_callback(char* key, void (*callback_funcation)(char*)) {
 	return 1;
 }
 
-int close_connetion() {
+int close_connection() {
 	close(app_socket);
 	// verificar erros
 	return 1;

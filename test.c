@@ -78,5 +78,9 @@ int main() {
 
 	delete_value("nome4");
 
+	//
+
+	close_connection();
+
 	return 0;
 }
