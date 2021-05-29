@@ -45,6 +45,26 @@ void create_group(struct sockaddr_in* addr, char* group_id) {
 	return;
 }
 
+void get_group_secret(struct sockaddr_in* addr, char* group_id) {
+	int bytes = -1;
+	char* secret = NULL;
+
+	get_from_hash_table(groups, group_id, &secret);
+
+	bytes = sendto(console_auth_server_socket,
+				   secret,
+				   MAX_SECRET + 1,
+				   MSG_CONFIRM,
+				   (struct sockaddr*)addr,
+				   sizeof(struct sockaddr_in));
+	if(bytes == -1) {
+		perror("");
+		exit(-1);
+	}
+
+	return;
+}
+
 void* console_handler(void* arg) {
 	int bytes = -1;
 	char operation_type = '\0';
@@ -74,7 +94,7 @@ void* console_handler(void* arg) {
 				// code
 				break;
 			case GET: // giving group secret (group info of console)
-				// code
+				get_group_secret(&local_server_addr, operation.group_id);
 				break;
 
 			default: // handling errors ??
@@ -88,6 +108,7 @@ void apps_handler() {
 	int bytes = -1; // checking predifined functions errors
 	int code = -1; // error handling
 	int len = 0;
+	char** value = NULL;
 	access_packet group_auth_info;
 	struct sockaddr_in local_server_addr;
 
@@ -105,8 +126,12 @@ void apps_handler() {
 			exit(-1);
 		}
 
+		value = calloc(1, sizeof(char*));
+
+		get_from_hash_table(groups, group_auth_info.group_id, value);
+
 		// handling auth_server thingys
-		code = 10;
+		code = *value ? strcmp(group_auth_info.secret, *value) == 0 ? 1 : -1 : -2;
 
 		sendto(apps_auth_server_socket,
 			   &code,

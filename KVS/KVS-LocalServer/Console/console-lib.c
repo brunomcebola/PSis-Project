@@ -24,12 +24,38 @@
 #define ANSI_CYAN "\x1b[36m"
 #define ANSI_RESET "\x1b[0m"
 
+void print_title(char* title) {
+	printf(ANSI_BOLD "%s\n\n" ANSI_RESET, title);
+
+	return;
+}
+
+void print_error(char* error) {
+	printf(ANSI_RED "%s\n\n" ANSI_RESET, error);
+
+	return;
+}
+
+void print_success(char* description, void* data, int type) {
+	if(type == 0) {
+		printf(ANSI_BOLD ANSI_GREEN "%s: " ANSI_RESET ANSI_BOLD "%s\n" ANSI_RESET,
+			   description,
+			   (char*)data);
+	} else {
+		printf(ANSI_BOLD ANSI_GREEN "%s: " ANSI_RESET ANSI_BOLD "%d\n" ANSI_RESET,
+			   description,
+			   *(int*)data);
+	}
+
+	return;
+}
+
 void create_group_UI() {
 	char *group_id = NULL, *secret = NULL;
 	size_t size = 0;
 	int retype = 0;
 
-	printf(ANSI_BOLD "CREATE GROUP\n\n" ANSI_RESET);
+	print_title("CREATE GROUP");
 
 	do {
 		retype = 0;
@@ -39,10 +65,10 @@ void create_group_UI() {
 		group_id[strcspn(group_id, "\n")] = '\0';
 
 		if(strlen(group_id) == 0) {
-			printf(ANSI_RED "Please provide a group id!\n\n" ANSI_RESET);
+			print_error("Please provide a group id!");
 			retype = 1;
 		} else if(strlen(group_id) > MAX_GROUP_ID) {
-			printf(ANSI_RED "The group id can have a max of 1024 chars!\n\n" ANSI_RESET);
+			print_error("The group id can have a max of 1024 chars!");
 			retype = 1;
 		}
 
@@ -50,9 +76,44 @@ void create_group_UI() {
 
 	secret = create_group(group_id);
 
-	//secret = strndup("o meu segredo bue fixe", 256);
+	print_success("Secret", secret, 0);
+	printf("\n----\n");
 
-	printf(ANSI_BOLD ANSI_GREEN "Secret:" ANSI_RESET ANSI_BOLD " %s\n" ANSI_RESET, secret);
+	free(group_id);
+	free(secret);
+
+	return;
+}
+
+void group_info_UI() {
+	char *group_id = NULL, *secret = NULL;
+	int num_pairs = 0;
+	size_t size = 0;
+	int retype = 0;
+
+	print_title("SHOW GROUP INFO");
+
+	do {
+		retype = 0;
+
+		printf("Group id: ");
+		getline(&group_id, &size, stdin);
+		group_id[strcspn(group_id, "\n")] = '\0';
+
+		if(strlen(group_id) == 0) {
+			print_error("Please provide a group id!");
+			retype = 1;
+		} else if(strlen(group_id) > MAX_GROUP_ID) {
+			print_error("The group id can have a max of 1024 chars!");
+			retype = 1;
+		}
+
+	} while(retype);
+
+	group_info(group_id, &secret, &num_pairs);
+
+	print_success("Secret", secret, 0);
+	print_success("Number of key/pair values", &num_pairs, 1);
 	printf("\n----\n");
 
 	free(group_id);
@@ -96,7 +157,7 @@ int UI() {
 				break;
 
 			case 3:
-				/* code */
+				group_info_UI();
 				break;
 
 			case 4:

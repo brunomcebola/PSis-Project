@@ -53,7 +53,8 @@ int establish_connection(char* group_id, char* secret) {
 		exit(-1); // arranjar erros
 	}
 
-	int connect_error = connect(app_socket, (struct sockaddr*)&local_server_addr, sizeof(local_server_addr));
+	int connect_error =
+		connect(app_socket, (struct sockaddr*)&local_server_addr, sizeof(local_server_addr));
 	if(connect_error == -1) {
 		perror("Error connecting the application\n");
 		exit(-1); // arranjar erros
@@ -153,6 +154,8 @@ int put_value(char* key, char* value) {
 	if(bytes == -1) {
 		perror("Error getting the reponse of the put");
 	}
+
+	printf("%d\n", response);
 
 	return 1;
 }

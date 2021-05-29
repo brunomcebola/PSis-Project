@@ -11,21 +11,20 @@
 #include "./KVS/KVS-Lib/KVS-lib.h"
 
 int main() {
-	char *secret = "adeus", *group_id = "ola";
+	char *secret = "o meu segredo bue fixe!", *group_id = "hello";
 	char** value = calloc(1, sizeof(char*));
 
 	int p = establish_connection(group_id, secret);
 
 	printf("Code: %d\n", p);
 
-	put_value("nome", "Bruno Cebola");
+	put_value("nome1", "Bruno Cebola");
 
-	get_value("nome", value);
+	put_value("nome2", "Rui Abrantes");
 
-	printf("Nome: %s\n", *value);
+	put_value("nome3", "Vasco Rodrigues");
 
-	while(1) {
-	}
+	put_value("nome4", "André Silva");
 
 	return 0;
 }

@@ -185,7 +185,7 @@ void* connection_handler(void* connection) {
 	}
 
 	bytes = write(((connection_t*)connection)->socket, &code, sizeof(int));
-	if(bytes == 0) {
+	if(bytes == -1) {
 		perror("");
 		exit(-1);
 	}
@@ -218,19 +218,22 @@ void* connection_handler(void* connection) {
 		if(bytes == -1) {
 			perror("");
 			exit(-1);
-		}
+		} else if(bytes == 0) {
+			((connection_t*)connection)->socket = -1;
+			pthread_exit(0);
+		} else {
+			switch(operation_type) {
+				case PUT:
+					put_value(connection, group);
+					break;
 
-		switch(operation_type) {
-			case PUT:
-				put_value(connection, group);
-				break;
+				case GET:
+					get_value(connection, group);
+					break;
 
-			case GET:
-				get_value(connection, group);
-				break;
-
-			default:
-				break;
+				default:
+					break;
+			}
 		}
 	}
 }
@@ -304,6 +307,53 @@ void setup_connections() {
 }
 
 // console handling functions
+void group_info(char* group_id, char** secret, int* num_pairs) {
+	group_t* group = groups_list;
+	int bytes = -1;
+	int len = sizeof(struct sockaddr_in);
+	operation_packet operation;
+
+	while(group != NULL) {
+		if(strcmp(group->group_id, group_id) == 0) {
+			break;
+		}
+		group = group->next;
+	}
+
+	if(group != NULL) {
+		operation.type = GET;
+		strncpy(operation.group_id, group_id, MAX_GROUP_ID);
+
+		bytes = sendto(local_server_inet_socket,
+					   &operation,
+					   sizeof(operation),
+					   MSG_CONFIRM,
+					   (struct sockaddr*)&console_auth_server_inet_socket_addr,
+					   len);
+		if(bytes == -1) {
+			perror("");
+			exit(-1);
+		}
+
+		*secret = calloc(MAX_SECRET + 1, sizeof(char));
+
+		bytes = recvfrom(local_server_inet_socket,
+						 *secret,
+						 MAX_SECRET + 1,
+						 MSG_WAITALL,
+						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
+						 &len);
+		if(bytes == -1) {
+			perror("");
+			exit(-1);
+		}
+
+		*num_pairs = get_number_of_entries(group->hash_table);
+
+	} else {
+		// TODO: decide if returns secret or error
+	}
+}
 
 char* create_group(char* group_id) {
 	group_t* group = groups_list;
@@ -311,8 +361,6 @@ char* create_group(char* group_id) {
 	int len = sizeof(struct sockaddr_in);
 	operation_packet operation;
 	char* secret = NULL;
-
-	secret = calloc(MAX_SECRET + 1, sizeof(char));
 
 	while(group != NULL) {
 		if(strcmp(group->group_id, group_id) == 0) {
@@ -335,6 +383,8 @@ char* create_group(char* group_id) {
 			perror("");
 			exit(-1);
 		}
+
+		secret = calloc(MAX_SECRET + 1, sizeof(char));
 
 		bytes = recvfrom(local_server_inet_socket,
 						 secret,
