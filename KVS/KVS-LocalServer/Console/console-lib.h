@@ -2,6 +2,6 @@
 
 #define _KVS_LIB_H
 
-int home_screen(int * number_order){
+int UI();
 
 #endif

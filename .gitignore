@@ -1,3 +1,6 @@
 *.o
-projecto-v1.pdf
-.vscode
+.vscode/
+.executables/
+test
+KVS/KVS-AuthServer/auth_server
+KVS/KVS-LocalServer/local_sever

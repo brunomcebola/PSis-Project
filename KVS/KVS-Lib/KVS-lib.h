@@ -1,31 +1,32 @@
-/* See LICENSE for details */
-
 #ifndef KVS_LIB_H_
 
 #define KVS_LIB_H_
 
-
 /* FUNCTION DECLARATIONS */
 
-
-/*
- * Description:
- *   This function receives as arguments the strings containing the group name
- *   and corresponding secret, and tries to open the connection with the
- *   KVS-LocalServer.
- *
- * Scenarios:
- *  - If successful, all following operations on key-value pairs are done
- *    in then context of the provided group_id.
- *
- * Return:
- *   If the secret is correct this function returns 0.
- *
- *   If any error occurs the function should return a negative number.
- *
- *   For each possible error students should define and return a different
- *   return value.
- */
+/**
+  ** Description:
+  *   This function receives as arguments the strings containing the group name
+  *   and corresponding secret, and tries to open the connection with the
+  *   KVS-LocalServer.
+  *
+  ** Parameters:
+  *   @param group_id
+  *   @param secret 
+  *
+  ** Scenarios:
+  *   If successful, all following operations on key-value pairs are done
+  *   in then context of the provided group_id.
+  *
+  ** Return:
+  *   If the secret is correct this function returns 0.
+  *
+  *   If any error occurs the function should return a negative number.
+  *
+  *   For each possible error students should define and return a different
+  *   return value.
+  * 
+**/
 int establish_connection(char* group_id, char* secret);
 
 /*
@@ -83,7 +84,7 @@ int get_value(char* key, char** value);
  *   For each possible error students should define and return a different
  *   return value.
  */
-int delete_key(char* key);
+int delete_value(char* key);
 
 /*
  * Description:
