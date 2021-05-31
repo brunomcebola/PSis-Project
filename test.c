@@ -7,33 +7,37 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <time.h>
+#include <stdlib.h>
+
 #include "./Hashtable/hashtable-lib.h"
+
+char* generate_secret() {
+
+	char * key = calloc(10, sizeof(char));
+	srand(time(NULL));
+	int plus_one;
+
+	for(int i = 0; i <10 ; i = i + 2){
+		// random upper letter
+		key[i] = 'A' + (rand() % 26);
+		// random number
+		plus_one = i +1;
+		key[plus_one] = '0' + (rand() % 10);
+	}
+
+	return key;
+}
 
 int main() {
 
-	char  *tester;
+	char  * test;
 
-	key_pair ** my_hash_table;
-
-	my_hash_table = create_hash_table();
-
-	put_on_hash_table(my_hash_table, "boas", "4321");
-	put_on_hash_table(my_hash_table, "boas1", "1234");
-
-	get_from_hash_table(my_hash_table, "boas", &tester);
-
-	printf("My value on get is %s\n\n\n", tester);
-
-
-	printf_hash_table(my_hash_table);
-
-	delete_from_hash_table(my_hash_table,"boas");
-
-	printf("\n\n\n");
-
-	printf_hash_table(my_hash_table);
-
-
-
+	
+	while(1){
+		test = generate_secret();
+		printf(test);
+		getchar();
+	}
 	return 0;
 }
