@@ -19,17 +19,14 @@ int console_auth_server_socket = -1;
 key_pair** groups;
 
 char* generate_secret() {
-
-	char * key = calloc(10, sizeof(char));
+	char* key = calloc(MAX_SECRET + 1, sizeof(char));
 	srand(time(NULL));
-	int plus_one;
 
-	for(int i = 0; i <10 ; i = i + 2){
+	for(int i = 0; i < MAX_SECRET; i++) {
 		// random upper letter
 		key[i] = 'A' + (rand() % 26);
 		// random number
-		plus_one = i +1;
-		key[plus_one] = '0' + (rand() % 10);
+		key[++i] = '0' + (rand() % 10);
 	}
 
 	return key;
@@ -37,30 +34,34 @@ char* generate_secret() {
 
 void create_group(struct sockaddr_in* addr, char* group_id) {
 	int bytes = -1;
-	char secret[MAX_SECRET + 1];
+	char* secret;
 
-	strncpy(secret, generate_secret(), MAX_SECRET);
+	secret = generate_secret();
 
 	put_on_hash_table(groups, group_id, secret);
 
-	bytes = sendto(console_auth_server_socket,
-				   secret,
-				   sizeof(secret),
-				   MSG_CONFIRM,
-				   (struct sockaddr*)addr,
-				   sizeof(struct sockaddr_in));
+	bytes = sendto(console_auth_server_socket, secret, MAX_SECRET + 1, MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
 	if(bytes == -1) {
-		perror("");
-		exit(-1);
+		// TODO
 	}
+
+	free(secret);
 
 	return;
 }
 
-void delete_group(char * group_id){
-	int response;
+void delete_group(struct sockaddr_in* addr, char* group_id) {
+	int bytes = -1;
+	int response = 0;
+
 	response = delete_from_hash_table(groups, group_id);
-	// TODO: Error handling
+
+	bytes = sendto(console_auth_server_socket, &response, sizeof(int), MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
+	if(bytes == -1) {
+		// TODO
+	}
+
+	return;
 }
 
 void get_group_secret(struct sockaddr_in* addr, char* group_id) {
@@ -69,15 +70,9 @@ void get_group_secret(struct sockaddr_in* addr, char* group_id) {
 
 	get_from_hash_table(groups, group_id, &secret);
 
-	bytes = sendto(console_auth_server_socket,
-				   secret,
-				   MAX_SECRET + 1,
-				   MSG_CONFIRM,
-				   (struct sockaddr*)addr,
-				   sizeof(struct sockaddr_in));
+	bytes = sendto(console_auth_server_socket, secret, MAX_SECRET + 1, MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
 	if(bytes == -1) {
-		perror("");
-		exit(-1);
+		// TODO
 	}
 
 	return;
@@ -93,12 +88,8 @@ void* console_handler(void* arg) {
 	len = sizeof(struct sockaddr_in);
 
 	while(1) {
-		bytes = recvfrom(console_auth_server_socket,
-						 &operation,
-						 sizeof(operation),
-						 MSG_WAITALL,
-						 (struct sockaddr*)&local_server_addr,
-						 &len);
+		bytes =
+			recvfrom(console_auth_server_socket, &operation, sizeof(operation), MSG_WAITALL, (struct sockaddr*)&local_server_addr, &len);
 		if(bytes == -1) {
 			perror("");
 			exit(-1);
@@ -109,7 +100,7 @@ void* console_handler(void* arg) {
 				create_group(&local_server_addr, operation.group_id);
 				break;
 			case DEL: // delete group
-				delete_group(operation.group_id);
+				delete_group(&local_server_addr, operation.group_id);
 				break;
 			case GET: // giving group secret (group info of console)
 				get_group_secret(&local_server_addr, operation.group_id);
@@ -133,12 +124,8 @@ void apps_handler() {
 	len = sizeof(struct sockaddr_in);
 
 	while(1) {
-		bytes = recvfrom(apps_auth_server_socket,
-						 &group_auth_info,
-						 sizeof(group_auth_info),
-						 MSG_WAITALL,
-						 (struct sockaddr*)&local_server_addr,
-						 &len);
+		bytes = recvfrom(
+			apps_auth_server_socket, &group_auth_info, sizeof(group_auth_info), MSG_WAITALL, (struct sockaddr*)&local_server_addr, &len);
 		if(bytes == -1) {
 			perror("");
 			exit(-1);
@@ -151,12 +138,7 @@ void apps_handler() {
 		// handling auth_server thingys
 		code = *value ? strcmp(group_auth_info.secret, *value) == 0 ? 1 : -1 : -2;
 
-		sendto(apps_auth_server_socket,
-			   &code,
-			   sizeof(int),
-			   MSG_CONFIRM,
-			   (struct sockaddr*)&local_server_addr,
-			   len);
+		sendto(apps_auth_server_socket, &code, sizeof(int), MSG_CONFIRM, (struct sockaddr*)&local_server_addr, len);
 	}
 }
 
@@ -179,16 +161,11 @@ int setup_server() {
 	}
 
 	// "unlink" inet sockets
-	if(setsockopt(
-		   apps_auth_server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+	if(setsockopt(apps_auth_server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
 		perror("");
 		exit(-1);
 	}
-	if(setsockopt(console_auth_server_socket,
-				  SOL_SOCKET,
-				  SO_REUSEADDR | SO_REUSEPORT,
-				  &opt,
-				  sizeof(opt))) {
+	if(setsockopt(console_auth_server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
 		perror("");
 		exit(-1);
 	}
@@ -203,15 +180,11 @@ int setup_server() {
 	console_auth_server_addr.sin_port = htons(CONSOLE_AUTH_SERVER_PORT);
 
 	// bind the sockets
-	if(bind(apps_auth_server_socket,
-			(struct sockaddr*)&apps_auth_server_addr,
-			sizeof(apps_auth_server_addr)) < 0) {
+	if(bind(apps_auth_server_socket, (struct sockaddr*)&apps_auth_server_addr, sizeof(apps_auth_server_addr)) < 0) {
 		perror("");
 		exit(-1);
 	}
-	if(bind(console_auth_server_socket,
-			(struct sockaddr*)&console_auth_server_addr,
-			sizeof(console_auth_server_addr)) < 0) {
+	if(bind(console_auth_server_socket, (struct sockaddr*)&console_auth_server_addr, sizeof(console_auth_server_addr)) < 0) {
 		perror("");
 		exit(-1);
 	}

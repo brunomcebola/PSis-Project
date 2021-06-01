@@ -58,7 +58,7 @@ void create_group_UI() {
 		}
 
 	} while(retype);
-	printf("");
+	
 	secret = create_group(group_id);
 	
 	print_success("Secret", secret, 0);
@@ -94,8 +94,9 @@ void delete_group_UI() {
 		}
 
 	} while(retype);
-	printf("");
+	
 	response = delete_group(group_id);
+	
 	if(response == 1)
 		print_success("Deleted group", group_id, 0);
 	else

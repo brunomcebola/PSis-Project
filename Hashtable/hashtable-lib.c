@@ -18,6 +18,23 @@ typedef struct _key_pair {
 Colisions need to be handled with lists
 */
 
+unsigned int hash(char* key) {
+	/*******************************************
+	 * Every number here can be changed        *
+	 * depending on preference and performence *
+	 *******************************************/
+	int key_size = strnlen(key, MAX_KEY_SIZE);
+	int hash_weight = 123; // example
+	unsigned int hash_value = 0;
+
+	for(int i = 0; i < key_size; i++) {
+		hash_value += key[i];
+		hash_value = (hash_value * hash_weight);
+	}
+	hash_value = hash_value % HASH_SIZE;
+	return hash_value;
+}
+
 void printf_hash_table(key_pair** hash_table) {
 	key_pair* hash_helper = NULL;
 	for(int i = 0; i < HASH_SIZE; i++) {
@@ -34,21 +51,6 @@ void printf_hash_table(key_pair** hash_table) {
 	}
 }
 
-int check_duplication(key_pair* list, char* key) {
-	// return 1 if its a duplication
-	// return 0 if its not a duplication
-
-	// não sei se isto funciona assim FALTA TESTAR
-	while(list) {
-		if(strcmp(list->key, key) == 0) {
-			return 1; // this key already exists
-		}
-		list = list->next;
-	}
-
-	return 0; // it means there's no repetion
-}
-
 key_pair** create_hash_table() {
 	key_pair** hash_table = calloc(HASH_SIZE, sizeof(char*));
 
@@ -60,21 +62,27 @@ key_pair** create_hash_table() {
 	return hash_table;
 }
 
-unsigned int hash(char* key) {
-	/*******************************************
-	 * Every number here can be changed        *
-	 * depending on preference and performence *
-	 *******************************************/
-	int key_size = strnlen(key, MAX_KEY_SIZE);
-	int hash_weight = 123; // example
-	unsigned int hash_value = 0;
+int destroy_hash_table(key_pair** hash_table) {
+	key_pair *key_pair = NULL, *key_pair_aux = NULL;
 
-	for(int i = 0; i < key_size; i++) {
-		hash_value += key[i];
-		hash_value = (hash_value * hash_weight);
+	for(int i = 0; i < HASH_SIZE; i++) {
+		key_pair = hash_table[i];
+
+		if(key_pair == NULL) {
+			continue;
+		} else {
+			while(key_pair) {
+				key_pair_aux = key_pair;
+				key_pair = key_pair->next;
+
+				free(key_pair_aux->key);
+				free(key_pair_aux->value);
+				free(key_pair_aux);
+			}
+		}
 	}
-	hash_value = hash_value % HASH_SIZE;
-	return hash_value;
+
+	return 1;
 }
 
 int put_on_hash_table(key_pair** hash_table, char* key, char* value) {

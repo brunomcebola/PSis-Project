@@ -188,12 +188,7 @@ void* connection_handler(void* connection) {
 	}
 
 	// handle response from auth server
-	bytes = recvfrom(local_server_inet_socket,
-					 &code,
-					 sizeof(int),
-					 MSG_WAITALL,
-					 (struct sockaddr*)&apps_auth_server_inet_socket_addr,
-					 &len);
+	bytes = recvfrom(local_server_inet_socket, &code, sizeof(int), MSG_WAITALL, (struct sockaddr*)&apps_auth_server_inet_socket_addr, &len);
 	if(bytes == -1) {
 		// TODO
 	}
@@ -234,10 +229,10 @@ void* connection_handler(void* connection) {
 			t = time(NULL);
 			tm = *localtime(&t);
 			sprintf(((connection_t*)connection)->close_time,
-					"%d-%02d-%02d %02d:%02d:%02d",
-					tm.tm_year + 1900,
-					tm.tm_mon + 1,
+					"%02d-%02d-%d %02d:%02d:%02d",
 					tm.tm_mday,
+					tm.tm_mon + 1,
+					tm.tm_year + 1900,
 					tm.tm_hour,
 					tm.tm_min,
 					tm.tm_sec);
@@ -273,18 +268,18 @@ void* connections_listener(void* arg) {
 	while(1) {
 		connection = calloc(1, sizeof(connection_t));
 
-		connection->socket =
-			accept(local_server_unix_socket, (struct sockaddr*)&(connection->addr), (socklen_t*)&sockaddr_size);
+		connection->socket = accept(local_server_unix_socket, (struct sockaddr*)&(connection->addr), (socklen_t*)&sockaddr_size);
 		if(connection->socket == -1) {
+			// couldnt connect
 			// TODO
 		} else {
 			t = time(NULL);
 			tm = *localtime(&t);
 			sprintf(connection->open_time,
-					"%d-%02d-%02d %02d:%02d:%02d",
-					tm.tm_year + 1900,
-					tm.tm_mon + 1,
+					"%02d-%02d-%d %02d:%02d:%02d",
 					tm.tm_mday,
+					tm.tm_mon + 1,
+					tm.tm_year + 1900,
 					tm.tm_hour,
 					tm.tm_min,
 					tm.tm_sec);
@@ -334,8 +329,7 @@ void setup_connections() {
 	sprintf(local_server_unix_socket_addr.sun_path, LOCAL_SERVER_ADRESS);
 	unlink(LOCAL_SERVER_ADRESS);
 
-	int err = bind(
-		local_server_unix_socket, (struct sockaddr*)&(local_server_unix_socket_addr), sizeof(local_server_unix_socket_addr));
+	int err = bind(local_server_unix_socket, (struct sockaddr*)&(local_server_unix_socket_addr), sizeof(local_server_unix_socket_addr));
 	if(err == -1) {
 		perror("");
 		exit(-1);
@@ -385,12 +379,8 @@ void group_info(char* group_id, char** secret, int* num_pairs) {
 
 		*secret = calloc(MAX_SECRET + 1, sizeof(char));
 
-		bytes = recvfrom(local_server_inet_socket,
-						 *secret,
-						 MAX_SECRET + 1,
-						 MSG_WAITALL,
-						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
-						 &len);
+		bytes = recvfrom(
+			local_server_inet_socket, *secret, MAX_SECRET + 1, MSG_WAITALL, (struct sockaddr*)&console_auth_server_inet_socket_addr, &len);
 		if(bytes == -1) {
 			perror("");
 			exit(-1);
@@ -434,12 +424,8 @@ char* create_group(char* group_id) {
 
 		secret = calloc(MAX_SECRET + 1, sizeof(char));
 
-		bytes = recvfrom(local_server_inet_socket,
-						 secret,
-						 MAX_SECRET + 1,
-						 MSG_WAITALL,
-						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
-						 &len);
+		bytes = recvfrom(
+			local_server_inet_socket, secret, MAX_SECRET + 1, MSG_WAITALL, (struct sockaddr*)&console_auth_server_inet_socket_addr, &len);
 		if(bytes == -1) {
 			perror("");
 			exit(-1);
@@ -479,6 +465,7 @@ void app_status() {
 
 int delete_group(char* group_id) {
 	group_t* group = groups_list;
+	group_t* before_group = groups_list;
 	int bytes = -1;
 	int len = sizeof(struct sockaddr_in);
 	operation_packet operation;
@@ -488,6 +475,7 @@ int delete_group(char* group_id) {
 		if(strcmp(group->group_id, group_id) == 0) {
 			break;
 		}
+		before_group = group;
 		group = group->next;
 	}
 
@@ -502,27 +490,27 @@ int delete_group(char* group_id) {
 					   (struct sockaddr*)&console_auth_server_inet_socket_addr,
 					   len);
 		if(bytes == -1) {
-			perror("");
-			exit(-1);
+			// TODO
 		}
 
-		bytes = recvfrom(local_server_inet_socket,
-						 &response,
-						 1,
-						 MSG_WAITALL,
-						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
-						 &len);
+		bytes = recvfrom(
+			local_server_inet_socket, &response, sizeof(int), MSG_WAITALL, (struct sockaddr*)&console_auth_server_inet_socket_addr, &len);
 		if(bytes == -1) {
-			perror("");
-			exit(-1);
+			// TODO
 		}
-		// TODO: definir protocolo para error handling do delete
 
-		// TODO: TEMOS ALGUMA FUNÇÃO PARA DAR FREE AO GRUPO ?
+		// removing group from the list
+		if(before_group == group) {
+			groups_list = group->next;
+		} else {
+			before_group->next = group->next;
+		}
+		destroy_hash_table(group->hash_table);
+		free(group->hash_table);
 		free(group);
 	} else {
 		// TODO: decide if returns secret or error
 	}
 
-	return 0;
+	return 1;
 }
