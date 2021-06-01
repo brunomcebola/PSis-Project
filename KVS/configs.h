@@ -20,7 +20,7 @@
 // commun structs
 
 #define MAX_GROUP_ID 1024
-#define MAX_SECRET 256
+#define MAX_SECRET 32
 
 typedef struct {
 	char group_id[MAX_GROUP_ID + 1];

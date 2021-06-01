@@ -9,7 +9,7 @@ kvs_lib = KVS/KVS-Lib/KVS-lib.c
 hashtable_lib = Hashtable/hashtable-lib.c
 test_file = test.c
 
-all: exesFolder localServer authServer test
+all: clean exesFolder localServer authServer test
 
 localServer: $(local_server) $(local_server_connections) $(local_server_console) $(hashtable_lib)
 	$(CC) $^ -o ./executables/$@ $(CFLAGS) 
