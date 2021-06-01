@@ -18,9 +18,21 @@ int console_auth_server_socket = -1;
 
 key_pair** groups;
 
-// TODO: fazer a funcionalidade de gerar uma string randoom com 256 chars
 char* generate_secret() {
-	return "o meu segredo bue fixe!";
+
+	char * key = calloc(10, sizeof(char));
+	srand(time(NULL));
+	int plus_one;
+
+	for(int i = 0; i <10 ; i = i + 2){
+		// random upper letter
+		key[i] = 'A' + (rand() % 26);
+		// random number
+		plus_one = i +1;
+		key[plus_one] = '0' + (rand() % 10);
+	}
+
+	return key;
 }
 
 void create_group(struct sockaddr_in* addr, char* group_id) {
@@ -43,6 +55,12 @@ void create_group(struct sockaddr_in* addr, char* group_id) {
 	}
 
 	return;
+}
+
+void delete_group(char * group_id){
+	int response;
+	response = delete_from_hash_table(groups, group_id);
+	// TODO: Error handling
 }
 
 void get_group_secret(struct sockaddr_in* addr, char* group_id) {
@@ -91,7 +109,7 @@ void* console_handler(void* arg) {
 				create_group(&local_server_addr, operation.group_id);
 				break;
 			case DEL: // delete group
-				// code
+				delete_group(operation.group_id);
 				break;
 			case GET: // giving group secret (group info of console)
 				get_group_secret(&local_server_addr, operation.group_id);

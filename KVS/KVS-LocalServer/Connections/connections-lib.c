@@ -476,3 +476,53 @@ void app_status() {
 		}
 	}
 }
+
+int delete_group(char* group_id) {
+	group_t* group = groups_list;
+	int bytes = -1;
+	int len = sizeof(struct sockaddr_in);
+	operation_packet operation;
+	char response;
+
+	while(group != NULL) {
+		if(strcmp(group->group_id, group_id) == 0) {
+			break;
+		}
+		group = group->next;
+	}
+
+	if(group != NULL) {
+		operation.type = DEL;
+		strncpy(operation.group_id, group_id, MAX_GROUP_ID);
+
+		bytes = sendto(local_server_inet_socket,
+					   &operation,
+					   sizeof(operation),
+					   MSG_CONFIRM,
+					   (struct sockaddr*)&console_auth_server_inet_socket_addr,
+					   len);
+		if(bytes == -1) {
+			perror("");
+			exit(-1);
+		}
+
+		bytes = recvfrom(local_server_inet_socket,
+						 &response,
+						 1,
+						 MSG_WAITALL,
+						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
+						 &len);
+		if(bytes == -1) {
+			perror("");
+			exit(-1);
+		}
+		// TODO: definir protocolo para error handling do delete
+
+		// TODO: TEMOS ALGUMA FUNÇÃO PARA DAR FREE AO GRUPO ?
+		free(group);
+	} else {
+		// TODO: decide if returns secret or error
+	}
+
+	return 0;
+}

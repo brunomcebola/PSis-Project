@@ -58,14 +58,51 @@ void create_group_UI() {
 		}
 
 	} while(retype);
-
+	printf("");
 	secret = create_group(group_id);
-
+	
 	print_success("Secret", secret, 0);
 	printf("\n----\n");
 
 	free(group_id);
 	free(secret);
+
+	return;
+}
+
+void delete_group_UI() {
+	char *group_id = NULL;
+	size_t size = 0;
+	int retype = 0;
+	int response;
+
+	print_title("DELETE GROUP");
+
+	do {
+		retype = 0;
+
+		printf("Group id: ");
+		getline(&group_id, &size, stdin);
+		group_id[strcspn(group_id, "\n")] = '\0';
+
+		if(strlen(group_id) == 0) {
+			print_error("Please provide a group id!");
+			retype = 1;
+		} else if(strlen(group_id) > MAX_GROUP_ID) {
+			print_error("The group id can have a max of 1024 chars!");
+			retype = 1;
+		}
+
+	} while(retype);
+	printf("");
+	response = delete_group(group_id);
+	if(response == 1)
+		print_success("Deleted group", group_id, 0);
+	else
+		print_error("It was not possible to delete this group");
+	printf("\n----\n");
+
+	free(group_id);
 
 	return;
 }
@@ -148,7 +185,7 @@ int UI() {
 				break;
 
 			case 2: // delete group
-				/* code */
+				delete_group_UI();
 				break;
 
 			case 3:
