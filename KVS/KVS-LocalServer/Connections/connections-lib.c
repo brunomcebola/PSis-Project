@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "../../configs.h"
@@ -16,6 +17,9 @@
 #include "../../../Hashtable/hashtable-lib.h"
 
 typedef struct _connection_t {
+	int pid;
+	char open_time[29];
+	char close_time[29];
 	struct sockaddr_un addr;
 	int socket;
 	pthread_t thread;
@@ -157,50 +161,30 @@ void delete_value(void* connection, group_t* group) {
 void* connection_handler(void* connection) {
 	int bytes = -1, code = 0;
 	int len = sizeof(struct sockaddr_in);
-	int group_id_len = 0, secret_len = 0;
 	char operation_type = '\0';
-	access_packet group_auth_info;
+	time_t t;
+	struct tm tm;
+
 	group_t* group;
+	connection_packet connection_info;
 
 	// receive info from app
-	bytes = read(((connection_t*)connection)->socket, &group_id_len, sizeof(int));
+	bytes = read(((connection_t*)connection)->socket, &connection_info, sizeof(connection_packet));
 	if(bytes == -1) {
-		perror("");
-		exit(-1);
-	} else if(group_id_len > 1024) {
-		exit(-2);
+		// TODO
 	}
 
-	bytes = read(((connection_t*)connection)->socket, group_auth_info.group_id, group_id_len);
-	if(bytes == -1) {
-		perror("");
-		exit(-1);
-	}
-
-	bytes = read(((connection_t*)connection)->socket, &secret_len, sizeof(int));
-	if(bytes == -1) {
-		perror("");
-		exit(-1);
-	} else if(secret_len > 256) {
-		exit(-2);
-	}
-
-	bytes = read(((connection_t*)connection)->socket, group_auth_info.secret, secret_len);
-	if(bytes == -1) {
-		perror("");
-		exit(-1);
-	}
+	((connection_t*)connection)->pid = connection_info.pid;
 
 	// send info to auth server
 	bytes = sendto(local_server_inet_socket,
-				   &group_auth_info,
-				   sizeof(group_auth_info),
+				   &(connection_info.credentials),
+				   sizeof(access_packet),
 				   MSG_CONFIRM,
 				   (const struct sockaddr*)&apps_auth_server_inet_socket_addr,
 				   len);
 	if(bytes == -1) {
-		perror("");
-		exit(-1);
+		// TODO
 	}
 
 	// handle response from auth server
@@ -211,14 +195,12 @@ void* connection_handler(void* connection) {
 					 (struct sockaddr*)&apps_auth_server_inet_socket_addr,
 					 &len);
 	if(bytes == -1) {
-		perror("");
-		exit(-1);
+		// TODO
 	}
 
 	bytes = write(((connection_t*)connection)->socket, &code, sizeof(int));
 	if(bytes == -1) {
-		perror("");
-		exit(-1);
+		// TODO
 	}
 
 	//
@@ -226,7 +208,7 @@ void* connection_handler(void* connection) {
 	group = groups_list;
 
 	while(group != NULL) {
-		if(strcmp(group->group_id, group_auth_info.group_id) == 0) {
+		if(strcmp(group->group_id, connection_info.credentials.group_id) == 0) {
 			break;
 		}
 		group = group->next;
@@ -235,7 +217,7 @@ void* connection_handler(void* connection) {
 	if(group == NULL) {
 		group = calloc(1, sizeof(group_t));
 
-		strncpy(group->group_id, group_auth_info.group_id, MAX_GROUP_ID);
+		strncpy(group->group_id, connection_info.credentials.group_id, MAX_GROUP_ID);
 
 		group->hash_table = create_hash_table();
 
@@ -247,9 +229,18 @@ void* connection_handler(void* connection) {
 	while(1) {
 		bytes = read(((connection_t*)connection)->socket, &operation_type, sizeof(char));
 		if(bytes == -1) {
-			perror("");
-			exit(-1);
+			// TODO
 		} else if(bytes == 0) {
+			t = time(NULL);
+			tm = *localtime(&t);
+			sprintf(((connection_t*)connection)->close_time,
+					"%d-%02d-%02d %02d:%02d:%02d",
+					tm.tm_year + 1900,
+					tm.tm_mon + 1,
+					tm.tm_mday,
+					tm.tm_hour,
+					tm.tm_min,
+					tm.tm_sec);
 			((connection_t*)connection)->socket = -1;
 			pthread_exit(0);
 		} else {
@@ -276,17 +267,30 @@ void* connection_handler(void* connection) {
 void* connections_listener(void* arg) {
 	int sockaddr_size = sizeof(struct sockaddr_un);
 	connection_t* connection = NULL;
+	time_t t;
+	struct tm tm;
 
 	while(1) {
 		connection = calloc(1, sizeof(connection_t));
 
-		connection->socket = accept(local_server_unix_socket,
-									(struct sockaddr*)&(connection->addr),
-									(socklen_t*)&sockaddr_size);
+		connection->socket =
+			accept(local_server_unix_socket, (struct sockaddr*)&(connection->addr), (socklen_t*)&sockaddr_size);
 		if(connection->socket == -1) {
-			perror("");
-			exit(-1);
+			// TODO
 		} else {
+			t = time(NULL);
+			tm = *localtime(&t);
+			sprintf(connection->open_time,
+					"%d-%02d-%02d %02d:%02d:%02d",
+					tm.tm_year + 1900,
+					tm.tm_mon + 1,
+					tm.tm_mday,
+					tm.tm_hour,
+					tm.tm_min,
+					tm.tm_sec);
+
+			connection->close_time[0] = '\0';
+
 			connection->next = connections_list;
 
 			connections_list = connection;
@@ -330,9 +334,8 @@ void setup_connections() {
 	sprintf(local_server_unix_socket_addr.sun_path, LOCAL_SERVER_ADRESS);
 	unlink(LOCAL_SERVER_ADRESS);
 
-	int err = bind(local_server_unix_socket,
-				   (struct sockaddr*)&(local_server_unix_socket_addr),
-				   sizeof(local_server_unix_socket_addr));
+	int err = bind(
+		local_server_unix_socket, (struct sockaddr*)&(local_server_unix_socket_addr), sizeof(local_server_unix_socket_addr));
 	if(err == -1) {
 		perror("");
 		exit(-1);
@@ -342,6 +345,16 @@ void setup_connections() {
 }
 
 // console handling functions
+void print_info(char* description, void* data, int type) {
+	if(type == 0) {
+		printf(ANSI_BOLD ANSI_GREEN "%s: " ANSI_RESET ANSI_BOLD "%s\n" ANSI_RESET, description, (char*)data);
+	} else {
+		printf(ANSI_BOLD ANSI_GREEN "%s: " ANSI_RESET ANSI_BOLD "%d\n" ANSI_RESET, description, *(int*)data);
+	}
+
+	return;
+}
+
 void group_info(char* group_id, char** secret, int* num_pairs) {
 	group_t* group = groups_list;
 	int bytes = -1;
@@ -446,4 +459,20 @@ char* create_group(char* group_id) {
 	}
 
 	return secret;
+}
+
+void app_status() {
+	connection_t* connection = connections_list;
+
+	if(connection == NULL) {
+		printf("No app has connected so far\n\n");
+	} else {
+		while(connection != NULL) {
+			print_info("PID", &(connection->pid), 1);
+			print_info("Connection establishing time", connection->open_time, 0);
+			print_info("Connection close time", connection->close_time, 0);
+			printf("\n");
+			connection = connection->next;
+		}
+	}
 }

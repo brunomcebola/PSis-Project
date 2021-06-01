@@ -13,17 +13,6 @@
 
 #include "../Connections/connections-lib.h"
 
-// colors and fonts
-
-#define ANSI_BOLD "\x1b[1m"
-#define ANSI_RED "\x1b[31m"
-#define ANSI_GREEN "\x1b[32m"
-#define ANSI_YELLOW "\x1b[33m"
-#define ANSI_BLUE "\x1b[34m"
-#define ANSI_MAGENTA "\x1b[35m"
-#define ANSI_CYAN "\x1b[36m"
-#define ANSI_RESET "\x1b[0m"
-
 void print_title(char* title) {
 	printf(ANSI_BOLD "%s\n\n" ANSI_RESET, title);
 
@@ -38,13 +27,9 @@ void print_error(char* error) {
 
 void print_success(char* description, void* data, int type) {
 	if(type == 0) {
-		printf(ANSI_BOLD ANSI_GREEN "%s: " ANSI_RESET ANSI_BOLD "%s\n" ANSI_RESET,
-			   description,
-			   (char*)data);
+		printf(ANSI_BOLD ANSI_GREEN "%s: " ANSI_RESET ANSI_BOLD "%s\n" ANSI_RESET, description, (char*)data);
 	} else {
-		printf(ANSI_BOLD ANSI_GREEN "%s: " ANSI_RESET ANSI_BOLD "%d\n" ANSI_RESET,
-			   description,
-			   *(int*)data);
+		printf(ANSI_BOLD ANSI_GREEN "%s: " ANSI_RESET ANSI_BOLD "%d\n" ANSI_RESET, description, *(int*)data);
 	}
 
 	return;
@@ -122,6 +107,16 @@ void group_info_UI() {
 	return;
 }
 
+void app_status_UI() {
+	print_title("SHOW APPLICATION STATUS");
+
+	app_status();
+
+	printf("----\n");
+
+	return;
+}
+
 int UI() {
 	int option = -1;
 
@@ -161,7 +156,7 @@ int UI() {
 				break;
 
 			case 4:
-				/* code */
+				app_status_UI();
 				break;
 
 			case 5:

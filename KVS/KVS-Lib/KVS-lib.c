@@ -28,79 +28,67 @@ int app_socket = -1;
 
 int establish_connection(char* group_id, char* secret) {
 	int bytes = 0;
-	int len = 0;
 	int response = 0;
 
 	struct sockaddr_un app_addr;
 	struct sockaddr_un local_server_addr;
 
-	app_socket = socket(AF_UNIX, SOCK_STREAM, 0);
-	if(app_socket == -1) {
-		perror("Error creating the stream socket on the application");
-		exit(-1); // arranjar erros
-	}
+	connection_packet connection_info;
 
-	app_addr.sun_family = AF_UNIX;
-	sprintf(app_addr.sun_path, "/tmp/app_socket_%d", getpid());
-	unlink(app_addr.sun_path);
+	if(strlen(group_id) > MAX_GROUP_ID) {
+		// TODO
+	} else if(strlen(secret) > MAX_GROUP_ID) {
+		// TODO
+	} else {
+		app_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+		if(app_socket == -1) {
+			// TODO
+		}
 
-	local_server_addr.sun_family = AF_UNIX;
-	sprintf(local_server_addr.sun_path, LOCAL_SERVER_ADRESS);
+		app_addr.sun_family = AF_UNIX;
+		sprintf(app_addr.sun_path, "/tmp/app_socket_%d", getpid());
+		unlink(app_addr.sun_path);
 
-	int err = bind(app_socket, (struct sockaddr*)&app_addr, sizeof(app_addr));
-	if(err == -1) {
-		perror("Error binding the application socket");
-		exit(-1); // arranjar erros
-	}
+		local_server_addr.sun_family = AF_UNIX;
+		sprintf(local_server_addr.sun_path, LOCAL_SERVER_ADRESS);
 
-	int connect_error =
-		connect(app_socket, (struct sockaddr*)&local_server_addr, sizeof(local_server_addr));
-	if(connect_error == -1) {
-		perror("Error connecting the application\n");
-		exit(-1); // arranjar erros
-	}
+		int err = bind(app_socket, (struct sockaddr*)&app_addr, sizeof(app_addr));
+		if(err == -1) {
+			// TODO
+		}
 
-	len = (strlen(group_id) + 1) * sizeof(char);
-	bytes = write(app_socket, &len, sizeof(int));
-	if(bytes == 0) {
-		perror("Error write the group_id in the application");
-		exit(-1); // arranjar erros
-	}
-	bytes = write(app_socket, group_id, len);
-	if(bytes == 0) {
-		perror("Error write the group_id in the application");
-		exit(-1); // arranjar erros
-	}
+		int connect_error = connect(app_socket, (struct sockaddr*)&local_server_addr, sizeof(local_server_addr));
+		if(connect_error == -1) {
+			// TODO
+		}
 
-	len = (strlen(secret) + 1) * sizeof(char);
-	bytes = write(app_socket, &len, sizeof(int));
-	if(bytes == 0) {
-		perror("Error write the group_id in the application");
-		exit(-1); // arranjar erros
-	}
-	bytes = write(app_socket, secret, len);
-	if(bytes == 0) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
-	}
+		connection_info.pid = getpid();
+		strcpy(connection_info.credentials.group_id, group_id);
+		strcpy(connection_info.credentials.secret, secret);
 
-	// saber se consegui conectar
-	bytes = read(app_socket, &response, sizeof(int));
-	if(bytes == -1) {
-		perror("Error reading the authentication side\n");
-		exit(-1); // arranjar erros
-	}
-	switch(response) {
-		case WRONG_SECRET:
-			close(app_socket);
-			app_socket = -1;
-			break;
+		bytes = write(app_socket, &connection_info, sizeof(connection_packet));
+		if(bytes == -1) {
+			// TODO
+		}
 
-		default:
-			break;
-	}
+		// saber se consegui conectar
+		bytes = read(app_socket, &response, sizeof(int));
+		if(bytes == -1) {
+			// TODO
+		}
 
-	return response;
+		switch(response) {
+			case WRONG_SECRET:
+				close(app_socket);
+				app_socket = -1;
+				break;
+
+			default:
+				break;
+		}
+
+		return response;
+	}
 }
 
 int put_value(char* key, char* value) {

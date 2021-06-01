@@ -11,5 +11,6 @@ void start_connections();
 
 char* create_group(char* group_id);
 void group_info(char* group_id, char** secret, int* num_pairs);
+void app_status();
 
 #endif
