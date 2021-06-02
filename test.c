@@ -11,7 +11,7 @@
 #include "./KVS/KVS-Lib/KVS-lib.h"
 
 int main() {
-	char *secret = "W6O9V4M7R1V5H1Z0Y0J1M8M6R2G4X1Z1", *group_id = "hello";
+	char *secret = "L4H4Y7K3T7U2L2T4J0J7N5Q1P7B5E2D9", *group_id = "hello";
 	char *nome1 = NULL, *nome2 = NULL, *nome3 = NULL, *nome4 = NULL;
 
 	int p = establish_connection(group_id, secret);

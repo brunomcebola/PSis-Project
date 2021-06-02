@@ -2,15 +2,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <semaphore.h>
 
 #define HASH_SIZE 11 // preference of prime number // it was 53
 #define MAX_KEY_SIZE 256
 
 #include "hashtable-lib.h"
 
+typedef struct _sem_list{
+	sem_t* sem_id;			// semaphore indentification
+	int fd;					// pipe identification
+	struct _sem_list* next;
+} sem_list;
+
 typedef struct _key_pair {
 	char* key;
 	char* value;
+	sem_list * head;
 	struct _key_pair* next;
 } key_pair;
 
@@ -110,6 +118,7 @@ int put_on_hash_table(key_pair** hash_table, char* key, char* value) {
 		new_key->next = hash_table[hash_position];
 		new_key->key = malloc((strlen(key) + 1) * sizeof(char));
 		new_key->value = malloc((strlen(value) + 1) * sizeof(char));
+		new_key->head = NULL;
 
 		strcpy(new_key->key, key);
 		strcpy(new_key->value, value);
@@ -124,6 +133,35 @@ int put_on_hash_table(key_pair** hash_table, char* key, char* value) {
 	}
 
 	return 1; // it means it was a success
+}
+
+int put_sem_pipe_on_hash_table(key_pair** hash_table, char* key, void *sem_id, int pipe_id){
+	
+	key_pair* key_pair = NULL;
+	int hash_position = 0;
+
+	sem_list* aux = NULL;
+
+	sem_list* new_sem = calloc(1, sizeof(sem_list));
+	new_sem->sem_id = (sem_t *) sem_id;
+	new_sem->fd = pipe_id;
+
+	hash_position = hash(key);
+
+	// checking if key is new
+	key_pair = hash_table[hash_position];
+	while(key_pair) {
+		if(strcmp(key_pair->key, key) == 0) {
+			break; // this key already exists
+		}
+		key_pair = key_pair->next;
+	}
+
+	aux = key_pair->head;
+	key_pair->head = new_sem;
+	new_sem->next = aux;
+
+	return 1;
 }
 
 int get_from_hash_table(key_pair** hash_table, char* key, char** value) {
@@ -159,6 +197,10 @@ int get_from_hash_table(key_pair** hash_table, char* key, char** value) {
 	return 0;
 }
 
+int delete_sem_list(key_pair** hash_table){
+	// TODO
+}
+
 int delete_from_hash_table(key_pair** hash_table, char* key) {
 	key_pair* key_before = NULL;
 	key_pair* key_pair = NULL;
@@ -184,6 +226,7 @@ int delete_from_hash_table(key_pair** hash_table, char* key) {
 	if(key_pair) {
 		free(key_pair->key);
 		free(key_pair->value);
+		// TODO: STILL NEEDS TO DELETE LIST OF SEMAPHORES
 		if(key_before == NULL)
 			hash_table[hash_position] = key_pair->next;
 		else

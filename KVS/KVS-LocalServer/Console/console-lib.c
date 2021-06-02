@@ -13,28 +13,24 @@
 
 #include "../Connections/connections-lib.h"
 
-void print_title(char* title) {
-	printf(ANSI_BOLD "%s\n\n" ANSI_RESET, title);
-
-	return;
-}
-
-void print_error(char* error) {
-	printf(ANSI_RED "%s\n\n" ANSI_RESET, error);
-
-	return;
-}
-
-void print_success(char* description, void* data, int type) {
-	if(type == 0) {
-		printf(ANSI_BOLD ANSI_GREEN "%s: " ANSI_RESET ANSI_BOLD "%s\n" ANSI_RESET, description, (char*)data);
-	} else {
-		printf(ANSI_BOLD ANSI_GREEN "%s: " ANSI_RESET ANSI_BOLD "%d\n" ANSI_RESET, description, *(int*)data);
-	}
-
-	return;
-}
-
+/*******************************************************************
+*
+** void delete_group_UI() 
+*
+** Description:
+*		Calls the algorithm that will create the group in the
+*		authentication server.
+*
+** Parameters:
+*  		There are no parameters in this function
+*
+** Return:
+*		This function doesn't return any information
+*
+** Side-effects:
+*		There's no side-effect 
+*	
+*******************************************************************/
 void create_group_UI() {
 	char *group_id = NULL, *secret = NULL;
 	size_t size = 0;
@@ -53,15 +49,15 @@ void create_group_UI() {
 			print_error("Please provide a group id!");
 			retype = 1;
 		} else if(strlen(group_id) > MAX_GROUP_ID) {
-			print_error("The group id can have a max of 1024 chars!");
+			print_error("The group id can have a max of " STR(MAX_GROUP_ID) " chars!");
 			retype = 1;
 		}
 
 	} while(retype);
-	
+
 	secret = create_group(group_id);
-	
-	print_success("Secret", secret, 0);
+
+	print_success("Secret", secret);
 	printf("\n----\n");
 
 	free(group_id);
@@ -70,8 +66,26 @@ void create_group_UI() {
 	return;
 }
 
+/*******************************************************************
+*
+** void delete_group_UI() 
+*
+** Description:
+*		Calls the algorithm that will delete the group in the
+*		authentication server.
+*
+** Parameters:
+*  		There are no parameters in this function
+*
+** Return:
+*		This function doesn't return any information
+*
+** Side-effects:
+*		There's no side-effect 
+*	
+*******************************************************************/
 void delete_group_UI() {
-	char *group_id = NULL;
+	char* group_id = NULL;
 	size_t size = 0;
 	int retype = 0;
 	int response;
@@ -89,18 +103,19 @@ void delete_group_UI() {
 			print_error("Please provide a group id!");
 			retype = 1;
 		} else if(strlen(group_id) > MAX_GROUP_ID) {
-			print_error("The group id can have a max of 1024 chars!");
+			print_error("The group id can have a max of " STR(MAX_GROUP_ID) " chars!");
 			retype = 1;
 		}
 
 	} while(retype);
-	
+
 	response = delete_group(group_id);
-	
-	if(response == 1)
-		print_success("Deleted group", group_id, 0);
-	else
+
+	if(response == 1) {
+		print_success("Deleted group", group_id);
+	} else {
 		print_error("It was not possible to delete this group");
+	}
 	printf("\n----\n");
 
 	free(group_id);
@@ -108,6 +123,25 @@ void delete_group_UI() {
 	return;
 }
 
+/*******************************************************************
+*
+** void group_info_UI() 
+*
+** Description:
+*		Handles the interaction between the admin and the console,
+*		calling the algorithm to receive both the secret and number
+*		of key/pair values.
+*
+** Parameters:
+*  		There are no parameters in this function
+*
+** Return:
+*		This function doesn't return any information
+*
+** Side-effects:
+*		There's no side-effect 
+*	
+*******************************************************************/
 void group_info_UI() {
 	char *group_id = NULL, *secret = NULL;
 	int num_pairs = 0;
@@ -127,7 +161,7 @@ void group_info_UI() {
 			print_error("Please provide a group id!");
 			retype = 1;
 		} else if(strlen(group_id) > MAX_GROUP_ID) {
-			print_error("The group id can have a max of 1024 chars!");
+			print_error("The group id can have a max of " STR(MAX_GROUP_ID) " chars!");
 			retype = 1;
 		}
 
@@ -135,8 +169,8 @@ void group_info_UI() {
 
 	group_info(group_id, &secret, &num_pairs);
 
-	print_success("Secret", secret, 0);
-	print_success("Number of key/pair values", &num_pairs, 1);
+	print_success("Secret", secret);
+	print_success("Number of key/pair values", int2str(num_pairs));
 	printf("\n----\n");
 
 	free(group_id);
@@ -145,6 +179,23 @@ void group_info_UI() {
 	return;
 }
 
+/*******************************************************************
+*
+** void app_status_UI() 
+*
+** Description:
+*		Calls de algorithm to obtain the status of the application
+*
+** Parameters:
+*  		There are no parameters in this function
+*
+** Return:
+*		This function doesn't return any information
+*
+** Side-effects:
+*		There's no side-effect 
+*	
+*******************************************************************/
 void app_status_UI() {
 	print_title("SHOW APPLICATION STATUS");
 
@@ -155,7 +206,25 @@ void app_status_UI() {
 	return;
 }
 
-int UI() {
+/*******************************************************************
+*
+** void UI() 
+*
+** Description:
+*		Creates the interection between the admin of local server
+*		and the local server/authentication server
+*
+** Parameters:
+*  		There are no parameters in this function
+*
+** Return:
+*		This function doesn't return any information
+*
+** Side-effects:
+*		There's no side-effect 
+*	
+*******************************************************************/
+void UI() {
 	int option = -1;
 
 	printf("---------------------------------\n");

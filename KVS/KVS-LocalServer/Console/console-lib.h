@@ -2,6 +2,6 @@
 
 #define _KVS_LIB_H
 
-int UI();
+void UI();
 
 #endif
