@@ -26,6 +26,7 @@ typedef struct _connection_t {
 	int socket;
 	int cb_socket;
 	pthread_t thread;
+	pthread_mutex_t mutex;
 	struct _connection_t* next;
 } connection_t;
 
@@ -38,6 +39,7 @@ typedef struct _group {
 connection_t* connections_list = NULL;
 group_t* groups_list = NULL;
 pthread_t listening_thread;
+pthread_mutex_t console_mutex;
 
 int local_server_unix_socket = -1;
 int cb_local_server_unix_socket = -1;
@@ -47,6 +49,7 @@ struct sockaddr_un local_server_unix_socket_addr;
 struct sockaddr_un cb_local_server_unix_socket_addr;
 struct sockaddr_in apps_auth_server_inet_socket_addr;
 struct sockaddr_in console_auth_server_inet_socket_addr;
+
 
 void close_connection(connection_t* connection) {
 	time_t t;
@@ -119,7 +122,9 @@ void put_value(connection_t* connection, group_t* group) {
 		close_connection(connection);
 	}
 
+	pthread_mutex_lock(&connection->mutex);
 	code = put_on_hash_table(group->hash_table, key, value);
+	pthread_mutex_unlock(&connection->mutex);
 
 	bytes = write(connection->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
@@ -169,7 +174,9 @@ void get_value(connection_t* connection, group_t* group) {
 		close_connection(connection);
 	}
 
+	pthread_mutex_lock(&connection->mutex);
 	get_from_hash_table(group->hash_table, key, &value);
+	pthread_mutex_unlock(&connection->mutex);
 
 	len = strlen(value) + 1;
 	bytes = write(connection->socket, &len, sizeof(int));
@@ -234,8 +241,10 @@ void delete_value(connection_t* connection, group_t* group) {
 		}
 		fd = get_sem_pipe_from_hash_table(group->hash_table, key);
 	}
-
+		
+	pthread_mutex_lock(&connection->mutex);
 	code = delete_from_hash_table(group->hash_table, key);
+	pthread_mutex_unlock(&connection->mutex);
 
 	bytes = write(connection->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
@@ -254,9 +263,6 @@ void register_callback(void* connection, group_t* group) {
 	char* name;
 	int fd;
 	sem_t* sem_id;
-
-	char* pipe_name = calloc(MAX_NAME + 1, sizeof(char));
-	strcat(pipe_name, PIPE_PATH);
 
 	// reading key
 	bytes = read(((connection_t*)connection)->socket, &len, sizeof(int));
@@ -288,17 +294,10 @@ void register_callback(void* connection, group_t* group) {
 
 	sem_id = sem_open(name, O_CREAT, 0666, 0);
 
-	strcat(pipe_name, name);
-
-	mkfifo(pipe_name, 0666);
-
-	fd = open(pipe_name, O_WRONLY);
-
 	code = put_sem_pipe_on_hash_table(group->hash_table, key, sem_id, fd);
 
 	// TODO handling the code
 
-	free(pipe_name);
 	free(key);
 	free(name);
 	return;
@@ -406,6 +405,7 @@ void* connections_listener(void* arg) {
 
 		connection->socket = accept(local_server_unix_socket, NULL, NULL);
 		if(connection->socket != -1) {
+			// isto não está a fazer com que fique tudo parado à espera ?
 			connection->cb_socket = accept(cb_local_server_unix_socket, NULL, NULL);
 			t = time(NULL);
 			localtime_r(&t, &tm);
@@ -586,7 +586,7 @@ void group_info(char* group_id, char** secret, int* num_pairs) {
 	if(group != NULL) {
 		operation.type = GET;
 		strncpy(operation.group_id, group_id, MAX_GROUP_ID);
-
+		pthread_mutex_lock(&console_mutex);
 		bytes = sendto(console_local_server_inet_socket,
 					   &operation,
 					   sizeof(operation),
@@ -606,6 +606,8 @@ void group_info(char* group_id, char** secret, int* num_pairs) {
 						 MSG_WAITALL,
 						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
 						 &len);
+		pthread_mutex_unlock(&console_mutex);
+
 		if(bytes == -1) {
 			perror("");
 			exit(-1);
@@ -637,6 +639,7 @@ char* create_group(char* group_id) {
 		operation.type = POST;
 		strncpy(operation.group_id, group_id, MAX_GROUP_ID);
 
+		pthread_mutex_lock(&console_mutex);
 		bytes = sendto(console_local_server_inet_socket,
 					   &operation,
 					   sizeof(operation),
@@ -655,6 +658,8 @@ char* create_group(char* group_id) {
 						 MSG_WAITALL,
 						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
 						 &len);
+		pthread_mutex_unlock(&console_mutex);
+
 		if(bytes == -1) {
 			// TODO
 		}
@@ -712,7 +717,7 @@ int delete_group(char* group_id) {
 	if(group != NULL) {
 		operation.type = DEL;
 		strncpy(operation.group_id, group_id, MAX_GROUP_ID);
-
+		pthread_mutex_lock(&console_mutex);
 		bytes = sendto(console_local_server_inet_socket,
 					   &operation,
 					   sizeof(operation),
@@ -729,6 +734,8 @@ int delete_group(char* group_id) {
 						 MSG_WAITALL,
 						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
 						 &len);
+		pthread_mutex_unlock(&console_mutex);
+
 		if(bytes == -1) {
 			// TODO
 		}
