@@ -66,7 +66,7 @@ void* callback_socket_handler(void* args) {
 	}
 }
 
-//
+
 
 int establish_connection(char* group_id, char* secret) {
 	int bytes = 0;

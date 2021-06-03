@@ -71,6 +71,11 @@ typedef struct {
 
 #define SUCCESSFUL_CONNECTION 1
 #define SUCCESSFUL_OPERATION 1
+#define UNSUCCESSFUL_OPERATION -1
+
+#define UPDATE 2
+
+#define WRONG_KEY 0
 
 // helper functions
 

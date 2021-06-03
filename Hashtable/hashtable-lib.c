@@ -8,6 +8,7 @@
 #define MAX_KEY_SIZE 256
 
 #include "hashtable-lib.h"
+#include "../configs.h"
 
 typedef struct _sem_list{
 	sem_t* sem_id;			// semaphore indentification
@@ -124,7 +125,7 @@ key_pair** create_hash_table() {
 
 /*******************************************************************
 *
-**int detroy_hash_table() 
+**void detroy_hash_table() 
 *
 ** Description:
 *		This function frees all the memory used in the hash table.
@@ -137,13 +138,12 @@ key_pair** create_hash_table() {
 *							hashtable used to store information
 *
 ** Return:
-*		This function returns X
+*		This function doesn't return anything
 *
 ** Side-effects:
 *		There's no side-effect 
-*		TODO: error handling for the returns
 *******************************************************************/
-int destroy_hash_table(key_pair** hash_table) {
+void destroy_hash_table(key_pair** hash_table) {
 	key_pair *key_pair = NULL, *key_pair_aux = NULL;
 
 	for(int i = 0; i < HASH_SIZE; i++) {
@@ -163,7 +163,7 @@ int destroy_hash_table(key_pair** hash_table) {
 		}
 	}
 
-	return 1;
+	return;
 }
 
 /*******************************************************************
@@ -186,11 +186,11 @@ int destroy_hash_table(key_pair** hash_table) {
 *					the main data that's supposed to be stored
 *
 ** Return:
-*		This function returns X
+*		This function returns UPDATE if the key already existed but
+*		the value was different and return SUCCESSFUL_OPERATION otherwhise
 *
 ** Side-effects:
 *		There's no side-effect 
-*		TODO: error handling for the returns
 *******************************************************************/
 int put_on_hash_table(key_pair** hash_table, char* key, char* value) {
 	key_pair* old_head = NULL;
@@ -223,15 +223,17 @@ int put_on_hash_table(key_pair** hash_table, char* key, char* value) {
 		strcpy(new_key->value, value);
 
 		hash_table[hash_position] = new_key;
+		
 	}
 	// update already existing key/pair value
-	else {
+	else if(strcmp(key_pair->value, value) != 0){
 		free(key_pair->value);
 		key_pair->value = malloc((strlen(value) + 1) * sizeof(char));
 		strcpy(key_pair->value, value);
+		return UPDATE;
 	}
 
-	return 1; // it means it was a success
+	return SUCCESSFUL_OPERATION; // it means it was a success
 }
 
 /*******************************************************************
@@ -254,13 +256,12 @@ int put_on_hash_table(key_pair** hash_table, char* key, char* value) {
 *						for this key
 *
 ** Return:
-*		This function returns X
+*		This function doesn't return anything
 *
 ** Side-effects:
 *		There's no side-effect 
-*		TODO: error handling for the returns
 *******************************************************************/
-int put_sem_on_hash_table(key_pair** hash_table, char* key, void *sem_id){
+void put_sem_on_hash_table(key_pair** hash_table, char* key, void *sem_id){
 	
 	key_pair* key_pair = NULL;
 	int hash_position = 0;
@@ -285,12 +286,12 @@ int put_sem_on_hash_table(key_pair** hash_table, char* key, void *sem_id){
 	key_pair->head = new_sem;
 	new_sem->next = aux;
 
-	return 1;
+	return ;
 }
 
 /*******************************************************************
 *
-**int put_on_hash_table() 
+**int get_from_hash_table() 
 *
 ** Description:
 *		Searches for a key and storing the value of it in a variable
@@ -305,7 +306,8 @@ int put_sem_on_hash_table(key_pair** hash_table, char* key, void *sem_id){
 *						known by the user of this function
 *
 ** Return:
-*		This function returns X
+*		This function returns WRONG_KEY if the isn't in the hash table
+*		and SUCCESSFUL_OPERATION if it was possible to find the key
 *
 ** Side-effects:
 *		There's no side-effect 
@@ -323,7 +325,7 @@ int get_from_hash_table(key_pair** hash_table, char* key, char** value) {
 	if(key_pair == NULL) {
 		// putting the value on the hash tabble
 		printf("Key %s doesn't exist", key);
-		return 0;
+		return WRONG_KEY;
 	}
 
 	// searching for the key
@@ -338,10 +340,10 @@ int get_from_hash_table(key_pair** hash_table, char* key, char** value) {
 		new_value = calloc(strlen(key_pair->value) + 1, sizeof(char));
 		strcpy(new_value, key_pair->value);
 		*value = new_value;
-		return 1;
+		return SUCCESSFUL_OPERATION;
 	}
 
-	return 0;
+	return WRONG_KEY;
 }
 
 /*******************************************************************
@@ -359,13 +361,12 @@ int get_from_hash_table(key_pair** hash_table, char* key, char** value) {
 *						making it faster. 
 *
 ** Return:
-*		This function returns X
+*		This function returns nothing
 *
 ** Side-effects:
 *		There's no side-effect 
-*		TODO: error handling for the returns
 *******************************************************************/
-int delete_sem_list(key_pair* key_given){
+void delete_sem_list(key_pair* key_given){
 
 	sem_list* head = key_given->head;
 	sem_list* deleting_item = key_given->head;
@@ -376,7 +377,7 @@ int delete_sem_list(key_pair* key_given){
 		deleting_item = head;	
 	}
 
-	return 1;
+	return ;
 }
 
 /*******************************************************************
@@ -394,11 +395,13 @@ int delete_sem_list(key_pair* key_given){
 *					represents a certain value
 *
 ** Return:
-*		This function returns X
+*		This function returns WRONG_KEY if it wasn't
+*		possible to delete the key from the hash table and returns
+*		SUCCESSFUL_OPERATION if it was possible to delete the key
+*		from the hash table
 *
 ** Side-effects:
 *		There's no side-effects in this function
-*		TODO: checkar os erros handlings para a saída
 *******************************************************************/
 int delete_from_hash_table(key_pair** hash_table, char* key) {
 	key_pair* key_before = NULL;
@@ -411,7 +414,7 @@ int delete_from_hash_table(key_pair** hash_table, char* key) {
 	if(key_pair == NULL) {
 		// putting the value on the hash tabble
 		printf("Key %s doesn't exist", key);
-		return 0;
+		return WRONG_KEY;
 	}
 	// searching for the key
 	while(key_pair) {
@@ -431,9 +434,10 @@ int delete_from_hash_table(key_pair** hash_table, char* key) {
 		else
 			key_before->next = key_pair->next;
 		free(key_pair);
+		return SUCCESSFUL_OPERATION;
 	}
 
-	return 0;
+	return WRONG_KEY;
 }
 
 /*******************************************************************
