@@ -245,6 +245,7 @@ void delete_value(connection_t* connection, group_t* group) {
 	free(key);
 }
 
+// TODO: missing code commentary
 void register_callback(void* connection, group_t* group) {
 	int len = 0;
 	int bytes = 0;
@@ -303,6 +304,7 @@ void register_callback(void* connection, group_t* group) {
 	return;
 }
 
+// TODO: missing code commentary
 // handles connections between app local auth
 void* connection_handler(void* connection) {
 	int bytes = -1, code = 0;
@@ -392,6 +394,7 @@ void* connection_handler(void* connection) {
 	}
 }
 
+// TODO: missing code commentary
 void* connections_listener(void* arg) {
 	int sockaddr_size = sizeof(struct sockaddr_un);
 	connection_t* connection = NULL;
@@ -428,6 +431,7 @@ void* connections_listener(void* arg) {
 	}
 }
 
+// TODO: missing code commentary
 void start_connections() {
 	listen(local_server_unix_socket, 10);
 
@@ -565,6 +569,7 @@ int setup_connections() {
 }
 
 // console handling functions
+// TODO: missing code commentary
 void group_info(char* group_id, char** secret, int* num_pairs) {
 	group_t* group = groups_list;
 	int bytes = -1;
@@ -613,6 +618,7 @@ void group_info(char* group_id, char** secret, int* num_pairs) {
 	}
 }
 
+// TODO: missing code commentary
 char* create_group(char* group_id) {
 	group_t* group = groups_list;
 	int bytes = -1;
@@ -669,6 +675,7 @@ char* create_group(char* group_id) {
 	return secret;
 }
 
+// TODO: missing code commentary
 void app_status() {
 	connection_t* connection = connections_list;
 
@@ -685,6 +692,7 @@ void app_status() {
 	}
 }
 
+// TODO: missing code commentary
 int delete_group(char* group_id) {
 	group_t* group = groups_list;
 	group_t* before_group = groups_list;

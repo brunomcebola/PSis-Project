@@ -159,7 +159,7 @@ void get_group_secret(struct sockaddr_in* addr, char* group_id) {
 
 /*******************************************************************
 *
-** console_handler() 
+**void* console_handler() 
 *
 ** Description:
 *		Handles whichs algorithms are supposed to be used based on

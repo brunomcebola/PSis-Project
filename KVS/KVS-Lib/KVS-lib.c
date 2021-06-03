@@ -59,7 +59,7 @@ void* callback_socket_handler(void* args) {
 			// TODO
 		}
 
-		while() {
+		while(1) {
 		}
 
 		pthread_cancel();

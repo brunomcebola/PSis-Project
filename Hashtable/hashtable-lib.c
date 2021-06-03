@@ -11,7 +11,6 @@
 
 typedef struct _sem_list{
 	sem_t* sem_id;			// semaphore indentification
-	int fd;					// pipe identification
 	struct _sem_list* next;
 } sem_list;
 
@@ -22,10 +21,29 @@ typedef struct _key_pair {
 	struct _key_pair* next;
 } key_pair;
 
-/*
-Colisions need to be handled with lists
-*/
 
+/*******************************************************************
+*
+**unisgned int hash() 
+*
+** Description:
+*		Gives a pre-specified weight to the key parameter, so that the
+*		postion of the key in the hash table is always the same.
+*		This way, the same key will always be in a random but fixed
+*		position and different keys will probably be in different 
+*		positions.
+*
+** Parameters:
+*  		@param key - string that it's supposed t be stored
+*
+** Return:
+*		Unsiged int that represent the position of a certain key
+*		in the hashtable
+*
+** Side-effects:
+*		There's no side-effect 
+*		TODO: checkar melhor se realmente não tem side-effect
+*******************************************************************/
 unsigned int hash(char* key) {
 	/*******************************************
 	 * Every number here can be changed        *
@@ -43,6 +61,22 @@ unsigned int hash(char* key) {
 	return hash_value;
 }
 
+/*******************************************************************
+*
+**void printf_hash_table() 
+*
+** Description:
+*		Prints in to the stdout the information stores in the hashtable
+*
+** Parameters:
+*  		@param hash_table - a struct that stores the needed information
+*
+** Return:
+*		This functions doesn't return anything
+*
+** Side-effects:
+*		There's no side-effect 
+*******************************************************************/
 void printf_hash_table(key_pair** hash_table) {
 	key_pair* hash_helper = NULL;
 	for(int i = 0; i < HASH_SIZE; i++) {
@@ -59,6 +93,24 @@ void printf_hash_table(key_pair** hash_table) {
 	}
 }
 
+/*******************************************************************
+*
+**key_pair** create_hash_table() 
+*
+** Description:
+*		Allocates and inicializes the memory necessary for the hash
+*		table to store information
+*
+** Parameters:
+*  		There are no paraments in this function
+*
+** Return:
+*		This function returns the key_pair pointer of the array that
+*		represents the hash table that is supposed to store information
+*
+** Side-effects:
+*		There's no side-effect
+*******************************************************************/
 key_pair** create_hash_table() {
 	key_pair** hash_table = calloc(HASH_SIZE, sizeof(char*));
 
@@ -70,6 +122,27 @@ key_pair** create_hash_table() {
 	return hash_table;
 }
 
+/*******************************************************************
+*
+**int detroy_hash_table() 
+*
+** Description:
+*		This function frees all the memory used in the hash table.
+*		It frees the memory inside each structure and in the end
+*		it frees the memory of the array representing the hash
+*		table.
+*
+** Parameters:
+*  		@param hash_table - pointer of an array that represents the
+*							hashtable used to store information
+*
+** Return:
+*		This function returns X
+*
+** Side-effects:
+*		There's no side-effect 
+*		TODO: error handling for the returns
+*******************************************************************/
 int destroy_hash_table(key_pair** hash_table) {
 	key_pair *key_pair = NULL, *key_pair_aux = NULL;
 
@@ -93,6 +166,32 @@ int destroy_hash_table(key_pair** hash_table) {
 	return 1;
 }
 
+/*******************************************************************
+*
+**int put_on_hash_table() 
+*
+** Description:
+*		Stores the information in the hash table, the colitions in 
+*		the hash table are fixed by a list, if a certain key needs
+*		to be stored in and already used position it goes to the head
+*		of the list, sao the last value of the list is the first one
+*		to be stored
+*
+** Parameters:
+*  		@param hash_table - pointer of an array that represents the
+*							hashtable used to store information
+*		@param key - string that it's supposed t be stored and
+*					represents a certain value
+*		@param value - string that it's supposed t be stored being
+*					the main data that's supposed to be stored
+*
+** Return:
+*		This function returns X
+*
+** Side-effects:
+*		There's no side-effect 
+*		TODO: error handling for the returns
+*******************************************************************/
 int put_on_hash_table(key_pair** hash_table, char* key, char* value) {
 	key_pair* old_head = NULL;
 	key_pair* new_key = NULL;
@@ -135,7 +234,33 @@ int put_on_hash_table(key_pair** hash_table, char* key, char* value) {
 	return 1; // it means it was a success
 }
 
-int put_sem_pipe_on_hash_table(key_pair** hash_table, char* key, void *sem_id, int pipe_id){
+/*******************************************************************
+*
+**int put_on_hash_table() 
+*
+** Description:
+*		Stores the semaphore id information in the hash table so
+*		it's easy to know which semaphore needs to be used for a
+*		callback function
+*
+** Parameters:
+*  		@param hash_table - pointer of an array that represents the
+*							hashtable used to store information
+*		@param key - string that it's supposed t be stored and
+*					represents a certain value
+*		@param sem_id - pointer of void that will represent the 
+*						sem_t from the <semaphore.h> library and
+*						that indicates which semaphore is used
+*						for this key
+*
+** Return:
+*		This function returns X
+*
+** Side-effects:
+*		There's no side-effect 
+*		TODO: error handling for the returns
+*******************************************************************/
+int put_sem_on_hash_table(key_pair** hash_table, char* key, void *sem_id){
 	
 	key_pair* key_pair = NULL;
 	int hash_position = 0;
@@ -144,7 +269,6 @@ int put_sem_pipe_on_hash_table(key_pair** hash_table, char* key, void *sem_id, i
 
 	sem_list* new_sem = calloc(1, sizeof(sem_list));
 	new_sem->sem_id = (sem_t *) sem_id;
-	new_sem->fd = pipe_id;
 
 	hash_position = hash(key);
 
@@ -164,6 +288,29 @@ int put_sem_pipe_on_hash_table(key_pair** hash_table, char* key, void *sem_id, i
 	return 1;
 }
 
+/*******************************************************************
+*
+**int put_on_hash_table() 
+*
+** Description:
+*		Searches for a key and storing the value of it in a variable
+*		that the user of this function has. 
+*
+** Parameters:
+*  		@param hash_table - pointer of an array that represents the
+*							hashtable used to store information
+*		@param key - string that it's supposed t be stored and
+*					represents a certain value
+*		@param value - string that wants to be stored and wants be 
+*						known by the user of this function
+*
+** Return:
+*		This function returns X
+*
+** Side-effects:
+*		There's no side-effect 
+*		TODO: error handling for the returns
+*******************************************************************/
 int get_from_hash_table(key_pair** hash_table, char* key, char** value) {
 	char* new_value;
 	key_pair* key_pair;
@@ -197,10 +344,62 @@ int get_from_hash_table(key_pair** hash_table, char* key, char** value) {
 	return 0;
 }
 
-int delete_sem_list(key_pair** hash_table){
-	// TODO
+/*******************************************************************
+*
+**int delete_sem_list() 
+*
+** Description:
+*		Deletes all the informations about the list of semaphores 
+*
+** Parameters:
+*  		@param key_given - is the struct that holds all the important
+*						information, and it's the struct that wants
+*						to be deleted, by being the parameter instead
+*						of the key, it's not needed to do the search
+*						making it faster. 
+*
+** Return:
+*		This function returns X
+*
+** Side-effects:
+*		There's no side-effect 
+*		TODO: error handling for the returns
+*******************************************************************/
+int delete_sem_list(key_pair* key_given){
+
+	sem_list* head = key_given->head;
+	sem_list* deleting_item = key_given->head;
+	
+	while(head != NULL) {
+		head = head->next;
+		free(deleting_item);
+		deleting_item = head;	
+	}
+
+	return 1;
 }
 
+/*******************************************************************
+*
+**int delete_from_hash_table() 
+*
+** Description:
+*		It deletes a specified key in the hash table, freeing all
+*		the memory that's attached to it.
+*
+** Parameters:
+*  		@param hash_table - pointer of an array that represents the
+*							hashtable used to store information
+*		@param key - string that it's supposed t be stored and
+*					represents a certain value
+*
+** Return:
+*		This function returns X
+*
+** Side-effects:
+*		There's no side-effects in this function
+*		TODO: checkar os erros handlings para a saída
+*******************************************************************/
 int delete_from_hash_table(key_pair** hash_table, char* key) {
 	key_pair* key_before = NULL;
 	key_pair* key_pair = NULL;
@@ -237,6 +436,26 @@ int delete_from_hash_table(key_pair** hash_table, char* key) {
 	return 0;
 }
 
+/*******************************************************************
+*
+**int get_number_of_entries() 
+*
+** Description:
+*		It counts the number of all the keys stored in the hash table
+*
+** Parameters:
+*  		@param hash_table - pointer of an array that represents the
+*							hashtable used to store information
+*
+** Return:
+*		This function returns the number of keys that a certain group
+*		has stored
+*
+** Side-effects:
+*		Depending on the size of hash table and the position of the
+*		keys in the hash table, it can take a long time to count
+*		all of them
+*******************************************************************/
 int get_number_of_entries(key_pair** hash_table) {
 	key_pair* key_pair = NULL;
 	int entries = 0;
