@@ -68,6 +68,7 @@ typedef struct {
 
 #define WRONG_SECRET -1
 #define NONEXISTENT_GROUP -2
+#define WRONG_KEY 0
 
 #define SUCCESSFUL_CONNECTION 1
 #define SUCCESSFUL_OPERATION 1
@@ -76,7 +77,8 @@ typedef struct {
 #define CREATED 1
 #define UPDATE 2
 
-#define WRONG_KEY 0
+// callocs or mallocs
+#define NO_MEMORY_AVAILABLE -1
 
 // helper functions
 
