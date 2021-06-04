@@ -39,7 +39,7 @@ typedef struct _group {
 connection_t* connections_list = NULL;
 group_t* groups_list = NULL;
 pthread_t listening_thread;
-pthread_mutex_t console_mutex;
+pthread_mutex_t group_list_rwlock; // TODO dar destroy na consola
 
 int local_server_unix_socket = -1;
 int cb_local_server_unix_socket = -1;
@@ -50,10 +50,13 @@ struct sockaddr_un cb_local_server_unix_socket_addr;
 struct sockaddr_in apps_auth_server_inet_socket_addr;
 struct sockaddr_in console_auth_server_inet_socket_addr;
 
-void close_connection(connection_t* connection) {
+void close_connection(connection_t* connection, int critical_region) {
 	time_t t;
 	struct tm tm;
 
+	if(critical_region){
+		pthread_rwlock_unlock(&group_list_rwlock);
+	}
 	t = time(NULL);
 	localtime_r(&t, &tm);
 	sprintf(connection->close_time,
@@ -102,33 +105,31 @@ void put_value(connection_t* connection, group_t* group) {
 
 	bytes = read(connection->socket, &key_len, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection(connection);
+		close_connection(connection,.0);
 	}
 
 	key = calloc(key_len, sizeof(char));
 	bytes = read(connection->socket, key, key_len);
 	if(bytes != key_len) {
-		close_connection(connection);
+		close_connection(connection,0);
 	}
 
 	bytes = read(connection->socket, &value_len, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection(connection);
+		close_connection(connection,0);
 	}
 
 	value = calloc(value_len, sizeof(char));
 	bytes = read(connection->socket, value, value_len);
 	if(bytes != value_len) {
-		close_connection(connection);
+		close_connection(connection, 0);
 	}
 
-	pthread_mutex_lock(&group->mutex);
 	code = put_on_hash_table(group->hash_table, key, value);
-	pthread_mutex_unlock(&group->mutex);
 
 	bytes = write(connection->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection(connection);
+		close_connection(connection, 0);
 	}
 
 	free(key);
@@ -165,28 +166,26 @@ void get_value(connection_t* connection, group_t* group) {
 
 	bytes = read(connection->socket, &len, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection(connection);
+		close_connection(connection,0);
 	}
 
 	key = calloc(len, sizeof(char));
 	bytes = read(connection->socket, key, len);
 	if(bytes != len) {
-		close_connection(connection);
+		close_connection(connection,0);
 	}
 
-	pthread_mutex_lock(&group->mutex);
 	get_from_hash_table(group->hash_table, key, &value);
-	pthread_mutex_unlock(&group->mutex);
 
 	len = strlen(value) + 1;
 	bytes = write(connection->socket, &len, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection(connection);
+		close_connection(connection,0);
 	}
 
 	bytes = write(connection->socket, value, len * sizeof(char));
 	if(bytes != len * sizeof(char)) {
-		close_connection(connection);
+		close_connection(connection,0);
 	}
 
 	free(key);
@@ -223,22 +222,20 @@ void delete_value(connection_t* connection, group_t* group) {
 
 	bytes = read(connection->socket, &key_len, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection(connection);
+		close_connection(connection,0);
 	}
 
 	key = calloc(key_len, sizeof(char));
 	bytes = read(connection->socket, key, key_len);
 	if(bytes != key_len) {
-		close_connection(connection);
+		close_connection(connection,0);
 	}
 
-	pthread_mutex_lock(&group->mutex);
 	code = delete_from_hash_table(group->hash_table, key);
-	pthread_mutex_unlock(&group->mutex);
 
 	bytes = write(connection->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection(connection);
+		close_connection(connection,0);
 	}
 
 	free(key);
@@ -255,20 +252,20 @@ void register_callback(connection_t* connection, group_t* group) {
 	// reading key
 	bytes = read(connection->socket, key, (MAX_KEY + 1) * sizeof(char));
 	if(bytes != (MAX_KEY + 1) * sizeof(char)) {
-		close_connection(connection);
+		close_connection(connection,0);
 	}
 
 	// reading semaphore/pipe name
 	bytes = read(connection->socket, name, (MAX_NAME + 1) * sizeof(char));
 	if(bytes != (MAX_NAME + 1) * sizeof(char)) {
-		close_connection(connection);
+		close_connection(connection,0);
 	}
 
 	code = put_sem_on_hash_table(group->hash_table, key, name);
 
 	bytes = write(connection->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection(connection);
+		close_connection(connection,0);
 	}
 
 	return;
@@ -287,7 +284,7 @@ void* connection_handler(void* connection) {
 	// receive info from app
 	bytes = read(((connection_t*)connection)->socket, &connection_info, sizeof(connection_packet));
 	if(bytes != sizeof(connection_packet)) {
-		close_connection((connection_t*)connection);
+		close_connection((connection_t*)connection,0);
 	}
 
 	((connection_t*)connection)->pid = connection_info.pid;
@@ -300,19 +297,19 @@ void* connection_handler(void* connection) {
 				   (const struct sockaddr*)&apps_auth_server_inet_socket_addr,
 				   len);
 	if(bytes != sizeof(access_packet)) {
-		close_connection((connection_t*)connection);
+		close_connection((connection_t*)connection, 0);
 	}
 
 	// handle response from auth server
 	bytes = recvfrom(
 		apps_local_server_inet_socket, &code, sizeof(int), MSG_WAITALL, (struct sockaddr*)&apps_auth_server_inet_socket_addr, &len);
 	if(bytes != sizeof(int)) {
-		close_connection((connection_t*)connection);
+		close_connection((connection_t*)connection, 0);
 	}
 
 	bytes = write(((connection_t*)connection)->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection((connection_t*)connection);
+		close_connection((connection_t*)connection, 0);
 	}
 
 	group = groups_list;
@@ -324,10 +321,11 @@ void* connection_handler(void* connection) {
 		group = group->next;
 	}
 
+	pthread_rwlock_rdlock(&group_list_rwlock);
 	if(group == NULL) {
 		group = calloc(1, sizeof(group_t));
 		if(group == NULL){
-			
+			close_connection((connection_t*)connection, 1);
 		}
 
 		strncpy(group->group_id, connection_info.credentials.group_id, MAX_GROUP_ID);
@@ -337,19 +335,36 @@ void* connection_handler(void* connection) {
 		group->next = groups_list;
 
 		// inicializing the mutex for each data
-		if (pthread_mutex_init(&group->mutex, NULL) != 0) {
-			// TODO error handling
+		if (pthread_rwlock_init(&group->mutex, NULL) != 0) {
+			close_connection((connection_t*)connection, 1);
     	}	
 
 		groups_list = group;
 	}
+	pthread_rwlock_rdlock(&group_list_rwlock);
 
 	while(1) {
+		pthread_rwlock_rdlock(&group_list_rwlock);
+		group = groups_list;
+
+		while(group != NULL) {
+			if(strcmp(group->group_id, connection_info.credentials.group_id) == 0) {
+				break;
+			}
+			group = group->next;
+		}
+		if(group == NULL){
+			close_connection((connection_t*)connection, 1);
+		}
+		
+
 		bytes = read(((connection_t*)connection)->socket, &operation_type, sizeof(char));
 		if(bytes != sizeof(char)) {
-			close_connection((connection_t*)connection);
+			close_connection((connection_t*)connection, 1);
 		}
-
+		pthread_rwlock_rdlock(&group->mutex);
+		pthread_rwlock_unlock(&group_list_rwlock);
+		
 		switch(operation_type) {
 			case PUT:
 				put_value((connection_t*)connection, group);
@@ -367,6 +382,7 @@ void* connection_handler(void* connection) {
 				register_callback((connection_t*)connection, group);
 				break;
 		}
+		pthread_rwlock_unlock(&group->mutex);
 	}
 }
 
@@ -379,6 +395,9 @@ void* connections_listener(void* arg) {
 
 	while(1) {
 		connection = calloc(1, sizeof(connection_t));
+		if(connection == NULL){
+			close_connection(connection,0);
+		}
 
 		connection->socket = accept(local_server_unix_socket, NULL, NULL);
 		if(connection->socket != -1) {
@@ -424,16 +443,13 @@ void start_connections() {
 
 /*******************************************************************
 * 
-** void put_value(connection_t* connection, group_t* group) 
+** void setup_connections() 
 *
 ** Description:
-*		Inserts a new key/value pair in the provided group's hashtable
-*		if it doesn't exist yet. If it does exist then the value gets
-*		updated.
+*		
 *
 ** Parameters:
-*  	@param connection - struct holding connections settings
-*  	@param group - struct holding group infos
+*  		This function has no parameters
 *
 ** Return:
 *		Returns an int indicating if the the setup was successful 
@@ -478,9 +494,9 @@ int setup_connections() {
 	}
 
 	// inicializing the mutex for the console data sharing
-	if (pthread_mutex_init(&console_mutex, NULL) != 0) {
-		// TODO error handling
-    }	
+	if (pthread_rwlock_init(&group_list_rwlock, NULL) != 0) {
+		return UNSUCCESSFUL_OPERATION;
+	}
 
 	apps_auth_server_inet_socket_addr.sin_family = AF_INET;
 	apps_auth_server_inet_socket_addr.sin_port = htons(APPS_AUTH_SERVER_PORT);
@@ -576,7 +592,7 @@ void group_info(char* group_id, char** secret, int* num_pairs) {
 	if(group != NULL) {
 		operation.type = GET;
 		strncpy(operation.group_id, group_id, MAX_GROUP_ID);
-		pthread_mutex_lock(&console_mutex);
+
 		bytes = sendto(console_local_server_inet_socket,
 					   &operation,
 					   sizeof(operation),
@@ -596,16 +612,16 @@ void group_info(char* group_id, char** secret, int* num_pairs) {
 						 MSG_WAITALL,
 						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
 						 &len);
-		pthread_mutex_unlock(&console_mutex);
 
 		if(bytes == -1) {
-			perror("");
 			exit(-1);
+			// TODO
 		}
 
 		*num_pairs = get_number_of_entries(group->hash_table);
 
 	} else {
+		// faz sentido ser so erro mesmo, se deu merda deu merda
 		// TODO: decide if returns secret or error
 	}
 }
@@ -618,6 +634,8 @@ char* create_group(char* group_id) {
 	operation_packet operation;
 	char* secret = NULL;
 
+	pthread_rwlock_wrlock(&group_list_rwlock);
+
 	while(group != NULL) {
 		if(strcmp(group->group_id, group_id) == 0) {
 			break;
@@ -629,7 +647,6 @@ char* create_group(char* group_id) {
 		operation.type = POST;
 		strncpy(operation.group_id, group_id, MAX_GROUP_ID);
 
-		pthread_mutex_lock(&console_mutex);
 		bytes = sendto(console_local_server_inet_socket,
 					   &operation,
 					   sizeof(operation),
@@ -641,6 +658,8 @@ char* create_group(char* group_id) {
 		}
 
 		secret = calloc(MAX_SECRET + 1, sizeof(char));
+		if(secret == NULL){
+		}
 
 		bytes = recvfrom(console_local_server_inet_socket,
 						 secret,
@@ -648,11 +667,12 @@ char* create_group(char* group_id) {
 						 MSG_WAITALL,
 						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
 						 &len);
-		pthread_mutex_unlock(&console_mutex);
 
 		if(bytes == -1) {
-			// TODO
+			return int2str(UNSUCCESSFUL_OPERATION);
 		}
+
+
 
 		group = calloc(1, sizeof(group_t));
 
@@ -661,10 +681,18 @@ char* create_group(char* group_id) {
 		group->hash_table = create_hash_table();
 
 		group->next = groups_list;
+		
+		if (pthread_rwlock_init(&group->mutex, NULL) != 0) {
+			return STR(UNSUCCESSFUL_OPERATION);
+    	}
 
 		groups_list = group;
+
+		pthread_rwlock_unlock(&group_list_rwlock);
+
 	} else {
-		// TODO: decide if returns secret or error
+		// checkar se é mesmo a int2str
+		return STR(NONEXISTENT_GROUP);
 	}
 
 	return secret;
@@ -696,6 +724,8 @@ int delete_group(char* group_id) {
 	operation_packet operation;
 	char response;
 
+	pthread_rwlock_wrlock(&group_list_rwlock);
+
 	while(group != NULL) {
 		if(strcmp(group->group_id, group_id) == 0) {
 			break;
@@ -707,7 +737,7 @@ int delete_group(char* group_id) {
 	if(group != NULL) {
 		operation.type = DEL;
 		strncpy(operation.group_id, group_id, MAX_GROUP_ID);
-		pthread_mutex_lock(&console_mutex);
+
 		bytes = sendto(console_local_server_inet_socket,
 					   &operation,
 					   sizeof(operation),
@@ -715,7 +745,7 @@ int delete_group(char* group_id) {
 					   (struct sockaddr*)&console_auth_server_inet_socket_addr,
 					   len);
 		if(bytes == -1) {
-			// TODO
+			return UNSUCCESSFUL_OPERATION;
 		}
 
 		bytes = recvfrom(console_local_server_inet_socket,
@@ -724,10 +754,9 @@ int delete_group(char* group_id) {
 						 MSG_WAITALL,
 						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
 						 &len);
-		pthread_mutex_unlock(&console_mutex);
 
 		if(bytes == -1) {
-			// TODO
+			return UNSUCCESSFUL_OPERATION;
 		}
 
 		// removing group from the list
@@ -736,9 +765,14 @@ int delete_group(char* group_id) {
 		} else {
 			before_group->next = group->next;
 		}
+		
+		pthread_rwlock_unlock(&group_list_rwlock);
+
+		pthread_rwlock_destroy(&group->mutex);
 		destroy_hash_table(group->hash_table);
 		free(group->hash_table);
 		free(group);
+
 	} else {
 		// TODO: decide if returns secret or error
 	}
