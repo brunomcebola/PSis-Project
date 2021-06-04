@@ -1,6 +1,7 @@
 #include "KVS-lib.h"
 
 #include <fcntl.h>
+#include <pthread.h>
 #include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,7 +11,6 @@
 #include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
-#include <pthread.h>
 
 #include "../configs.h"
 typedef struct _callback_t {
@@ -32,6 +32,8 @@ pthread_t cb_socket_thread;
 void* callback_handler(void* callback_info) {
 	int bytes;
 	char response;
+
+	printf("\n\nA espera\n\n");
 
 	while(sem_wait(((callback_t*)callback_info)->sem_id) >= 0) {
 		(((callback_t*)callback_info)->callback_function)(((callback_t*)callback_info)->key);
@@ -376,9 +378,13 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 
 			strncpy(callback_info->key, key, MAX_KEY);
 
-			strcpy(callback_info->name, int2str(getpid()));
+			char* pid = int2str(getpid());
+
+			strcpy(callback_info->name, pid);
 			strcat(callback_info->name, "_");
 			strcat(callback_info->name, callback_info->key);
+
+			free(pid);
 
 			callback_info->callback_function = callback_function;
 
@@ -394,13 +400,18 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 				// TODO
 			}
 
+			bytes = write(app_socket, callback_info->name, (MAX_NAME + 1) * sizeof(char));
+			if(bytes == 0) {
+				// TODO
+			}
+
 			bytes = read(app_socket, &response, sizeof(int));
 			if(bytes == -1) {
 				// TODO
 			}
 
 			// TODO
-			if(response) {
+			if(1) {
 				callback_info->next = callbacks_list;
 				callbacks_list = callback_info;
 

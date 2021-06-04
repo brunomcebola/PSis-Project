@@ -1,10 +1,14 @@
 #include "hashtable-lib.h"
 
+#include <fcntl.h>
 #include <semaphore.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 #define HASH_SIZE 11 // preference of prime number // it was 53
 #define MAX_KEY_SIZE 256
@@ -232,6 +236,13 @@ int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 		free(key_pair->value);
 		key_pair->value = malloc((strlen(value) + 1) * sizeof(char));
 		strcpy(key_pair->value, value);
+
+		sem_list_t* aux = key_pair->sem_head;
+		while(aux != NULL) {
+			sem_post(aux->sem_id);
+			aux = aux->next;
+		}
+
 		return UPDATE;
 	}
 }
@@ -261,7 +272,7 @@ int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 ** Side-effects:
 *		There's no side-effect 
 *******************************************************************/
-int put_sem_on_hash_table(key_pair_t** hash_table, char* key, sem_t* sem_id) {
+int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 	key_pair_t* key_pair = NULL;
 	int hash_position = 0;
 	sem_list_t* new_sem = NULL;
@@ -283,10 +294,12 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, sem_t* sem_id) {
 			// TODO
 		}
 
-		new_sem->sem_id = sem_id;
-		//new_sem->next = key_pair->sem_head;
+		char *kk = "jarbas";
 
-		//key_pair->sem_head = new_sem;
+		new_sem->sem_id = sem_open(kk, O_CREAT, 0600, 0);
+		new_sem->next = key_pair->sem_head;
+
+		key_pair->sem_head = new_sem;
 
 	} else {
 		// TODO
@@ -373,7 +386,6 @@ int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
 *		There's no side-effect 
 *******************************************************************/
 void delete_sem_list(key_pair_t* key_given) {
-	/*
 	sem_list_t* head = key_given->sem_head;
 	sem_list_t* deleting_item = key_given->sem_head;
 
@@ -382,7 +394,7 @@ void delete_sem_list(key_pair_t* key_given) {
 		free(deleting_item);
 		deleting_item = head;
 	}
-*/
+
 	return;
 }
 

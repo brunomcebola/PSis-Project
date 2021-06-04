@@ -92,6 +92,7 @@ void close_connection(connection_t* connection) {
 *	
 //	TODO: check put_on_hash_table return code
 //	TODO: synchronization missing
+//  TODO: callback call
 *
 *******************************************************************/
 void put_value(connection_t* connection, group_t* group) {
@@ -263,9 +264,7 @@ void register_callback(connection_t* connection, group_t* group) {
 		close_connection(connection);
 	}
 
-	sem_id = sem_open(name, O_CREAT, S_IROTH | S_IWOTH, 0);
-
-	code = put_sem_on_hash_table(group->hash_table, key, sem_id);
+	code = put_sem_on_hash_table(group->hash_table, key, name);
 
 	bytes = write(connection->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
