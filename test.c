@@ -17,7 +17,7 @@ void my_function(char* key) {
 }
 
 int main() {
-	char *secret = "P1G6S1P0U4F9Y5K4M5C3M3Q9T3Y9J2I6", *group_id = "hello";
+	char *secret = "S3N4V1H5M5M5J8Z9X9W8U1D2Q1T4T1T3", *group_id = "hello";
 	char *nome1 = NULL, *nome2 = NULL, *nome3 = NULL, *nome4 = NULL;
 
 	printf("%s\n", int2str(2));

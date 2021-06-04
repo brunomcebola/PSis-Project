@@ -33,7 +33,9 @@ void* callback_handler(void* callback_info) {
 	int bytes;
 	char response;
 
-	printf("\n\nA espera\n\n");
+	callback_t* k = (callback_t*)callback_info;
+
+	printf("\n%s\n", ((callback_t*)callback_info)->name);
 
 	while(sem_wait(((callback_t*)callback_info)->sem_id) >= 0) {
 		(((callback_t*)callback_info)->callback_function)(((callback_t*)callback_info)->key);
@@ -388,7 +390,7 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 
 			callback_info->callback_function = callback_function;
 
-			callback_info->sem_id = sem_open(callback_info->name, O_CREAT, S_IROTH | S_IWOTH, 0);
+			callback_info->sem_id = sem_open(callback_info->name, O_CREAT, 0600, 0);
 
 			bytes = write(app_socket, &type, sizeof(type));
 			if(bytes == 0) {

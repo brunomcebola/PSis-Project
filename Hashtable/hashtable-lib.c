@@ -234,7 +234,7 @@ int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 	// update already existing key/pair value
 	else if(strcmp(key_pair->value, value) != 0) {
 		free(key_pair->value);
-		key_pair->value = malloc((strlen(value) + 1) * sizeof(char));
+		key_pair->value = calloc((strlen(value) + 1), sizeof(char));
 		strcpy(key_pair->value, value);
 
 		sem_list_t* aux = key_pair->sem_head;
@@ -294,9 +294,8 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 			// TODO
 		}
 
-		char *kk = "jarbas";
+		new_sem->sem_id = sem_open(sem_name, O_CREAT, 0600, 0);
 
-		new_sem->sem_id = sem_open(kk, O_CREAT, 0600, 0);
 		new_sem->next = key_pair->sem_head;
 
 		key_pair->sem_head = new_sem;

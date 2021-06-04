@@ -65,20 +65,16 @@ typedef struct {
 #define WRONG_PARAM -3
 #define SENT_BROKEN_MESSAGE -4
 #define RECEIVED_BROKEN_MESSAGE -5
-
-#define WRONG_SECRET -1
-#define NONEXISTENT_GROUP -2
-#define WRONG_KEY 0
+#define NO_MEMORY_AVAILABLE -6
+#define UNSUCCESSFUL_OPERATION -7
+#define WRONG_SECRET -8
+#define NONEXISTENT_GROUP -9
+#define WRONG_KEY -10
 
 #define SUCCESSFUL_CONNECTION 1
-#define SUCCESSFUL_OPERATION 1
-#define UNSUCCESSFUL_OPERATION -1
-
-#define CREATED 1
-#define UPDATE 2
-
-// callocs or mallocs
-#define NO_MEMORY_AVAILABLE -1
+#define SUCCESSFUL_OPERATION 2
+#define CREATED 3
+#define UPDATE 4
 
 // helper functions
 

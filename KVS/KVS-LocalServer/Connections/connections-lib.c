@@ -106,6 +106,9 @@ void put_value(connection_t* connection, group_t* group) {
 	}
 
 	key = calloc(key_len, sizeof(char));
+	if(key == NULL){
+		close_connection(connection);
+	}
 	bytes = read(connection->socket, key, key_len);
 	if(bytes != key_len) {
 		close_connection(connection);
@@ -117,6 +120,9 @@ void put_value(connection_t* connection, group_t* group) {
 	}
 
 	value = calloc(value_len, sizeof(char));
+	if(value == NULL){
+		close_connection(connection);
+	}
 	bytes = read(connection->socket, value, value_len);
 	if(bytes != value_len) {
 		close_connection(connection);
@@ -169,6 +175,10 @@ void get_value(connection_t* connection, group_t* group) {
 	}
 
 	key = calloc(len, sizeof(char));
+	if(key == NULL){
+		close_connection(connection);
+	}
+	
 	bytes = read(connection->socket, key, len);
 	if(bytes != len) {
 		close_connection(connection);
@@ -227,6 +237,9 @@ void delete_value(connection_t* connection, group_t* group) {
 	}
 
 	key = calloc(key_len, sizeof(char));
+	if(key == NULL){
+		close_connection(connection);
+	}
 	bytes = read(connection->socket, key, key_len);
 	if(bytes != key_len) {
 		close_connection(connection);
