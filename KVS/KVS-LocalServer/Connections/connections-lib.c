@@ -26,12 +26,12 @@ typedef struct _connection_t {
 	int socket;
 	int cb_socket;
 	pthread_t thread;
-	pthread_mutex_t mutex;
 	struct _connection_t* next;
 } connection_t;
 
 typedef struct _group {
 	char group_id[MAX_GROUP_ID + 1];
+	pthread_mutex_t mutex;
 	key_pair_t** hash_table;
 	struct _group* next;
 } group_t;
@@ -121,9 +121,9 @@ void put_value(connection_t* connection, group_t* group) {
 		close_connection(connection);
 	}
 
-	pthread_mutex_lock(&connection->mutex);
+	pthread_mutex_lock(&group->mutex);
 	code = put_on_hash_table(group->hash_table, key, value);
-	pthread_mutex_unlock(&connection->mutex);
+	pthread_mutex_unlock(&group->mutex);
 
 	bytes = write(connection->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
@@ -173,9 +173,9 @@ void get_value(connection_t* connection, group_t* group) {
 		close_connection(connection);
 	}
 
-	pthread_mutex_lock(&connection->mutex);
+	pthread_mutex_lock(&group->mutex);
 	get_from_hash_table(group->hash_table, key, &value);
-	pthread_mutex_unlock(&connection->mutex);
+	pthread_mutex_unlock(&group->mutex);
 
 	len = strlen(value) + 1;
 	bytes = write(connection->socket, &len, sizeof(int));
@@ -231,9 +231,9 @@ void delete_value(connection_t* connection, group_t* group) {
 		close_connection(connection);
 	}
 
-	pthread_mutex_lock(&connection->mutex);
+	pthread_mutex_lock(&group->mutex);
 	code = delete_from_hash_table(group->hash_table, key);
-	pthread_mutex_unlock(&connection->mutex);
+	pthread_mutex_unlock(&group->mutex);
 
 	bytes = write(connection->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
@@ -327,12 +327,20 @@ void* connection_handler(void* connection) {
 
 	if(group == NULL) {
 		group = calloc(1, sizeof(group_t));
+		if(group == NULL){
+			
+		}
 
 		strncpy(group->group_id, connection_info.credentials.group_id, MAX_GROUP_ID);
 
 		group->hash_table = create_hash_table();
 
 		group->next = groups_list;
+
+		// inicializing the mutex for each data
+		if (pthread_mutex_init(&group->mutex, NULL) != 0) {
+			// TODO error handling
+    	}	
 
 		groups_list = group;
 	}
@@ -375,7 +383,6 @@ void* connections_listener(void* arg) {
 
 		connection->socket = accept(local_server_unix_socket, NULL, NULL);
 		if(connection->socket != -1) {
-			// isto não está a fazer com que fique tudo parado à espera ?
 			connection->cb_socket = accept(cb_local_server_unix_socket, NULL, NULL);
 			if(connection->cb_socket == -1) {
 				close(connection->socket);
@@ -436,7 +443,7 @@ void start_connections() {
 *
 ** Side-effects:
 *		There are no side-effects
-*
+*		TODO: wrong commentary
 *******************************************************************/
 int setup_connections() {
 	// CONNECTIONS TO AUTH SERVER
@@ -470,6 +477,11 @@ int setup_connections() {
 		print_error("Unable to create socket to connect consoles to authentication server");
 		return UNABLE_TO_CONNECT;
 	}
+
+	// inicializing the mutex for the console data sharing
+	if (pthread_mutex_init(&console_mutex, NULL) != 0) {
+		// TODO error handling
+    }	
 
 	apps_auth_server_inet_socket_addr.sin_family = AF_INET;
 	apps_auth_server_inet_socket_addr.sin_port = htons(APPS_AUTH_SERVER_PORT);
