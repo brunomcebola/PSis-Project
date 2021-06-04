@@ -8,16 +8,17 @@ auth_server = KVS/KVS-AuthServer/auth-server.c
 kvs_lib = KVS/KVS-Lib/KVS-lib.c
 hashtable_lib = Hashtable/hashtable-lib.c
 test_file = test.c
+configs = KVS/configs.c
 
-all: clean exesFolder localServer authServer test
+all: exesFolder localServer authServer test
 
-localServer: $(local_server) $(local_server_connections) $(local_server_console) $(hashtable_lib)
-	$(CC) $^ -o ./executables/$@ $(CFLAGS) 
+localServer: $(local_server) $(local_server_connections) $(local_server_console) $(hashtable_lib) $(configs)
+	$(CC) $^ -g -o ./executables/$@ $(CFLAGS) 
 
-authServer: $(auth_server) $(hashtable_lib)
-	$(CC) $^ -o ./executables/$@ $(CFLAGS)
+authServer: $(auth_server) $(hashtable_lib) $(configs)
+	$(CC) $^ -g -o ./executables/$@ $(CFLAGS)
 
-test: $(test_file) $(kvs_lib) $(hashtable_lib)
+test: $(test_file) $(kvs_lib) $(hashtable_lib) $(configs)
 	$(CC) $^ -o ./executables/$@ $(CFLAGS)
 
 clean:

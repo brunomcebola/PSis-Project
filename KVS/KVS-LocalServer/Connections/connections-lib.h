@@ -4,7 +4,7 @@
 
 // functions to handle application side requestes
 
-void setup_connections();
+int setup_connections();
 void start_connections();
 
 // functions to handle console side requestes
@@ -12,6 +12,6 @@ void start_connections();
 char* create_group(char* group_id);
 int delete_group(char * group_id);
 void group_info(char* group_id, char** secret, int* num_pairs);
-int show_app_status();
+void app_status();
 
 #endif
