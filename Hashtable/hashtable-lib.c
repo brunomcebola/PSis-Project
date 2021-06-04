@@ -325,7 +325,8 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 *
 ** Return:
 *		This function returns WRONG_KEY if the isn't in the hash table
-*		and SUCCESSFUL_OPERATION if it was possible to find the key
+*		and SUCCESSFUL_OPERATION if it was possible to find the key.
+*		TODO
 *
 ** Side-effects:
 *		There's no side-effect 

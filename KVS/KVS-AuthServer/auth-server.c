@@ -16,6 +16,8 @@
 int apps_auth_server_socket = -1;
 int console_auth_server_socket = -1;
 
+pthread_rwlock_t groups_rwlock;
+
 key_pair_t** groups;
 
 /*************************************************************************
@@ -194,7 +196,14 @@ void* console_handler(void* arg) {
 			perror("");
 			exit(-1);
 		}
-
+		// TODO
+		if(operation.type == GET){
+			pthread_rwlock_rdlock(&groups_rwlock);
+		}
+		else{
+			pthread_rwlock_wrlock(&groups_rwlock);
+		}
+		
 		switch(operation.type) {
 			case POST: // create group
 				create_group(&local_server_addr, operation.group_id);
@@ -205,10 +214,8 @@ void* console_handler(void* arg) {
 			case GET: // giving group secret (group info of console)
 				get_group_secret(&local_server_addr, operation.group_id);
 				break;
-
-			default: // handling errors ??
-				break;
-		}
+		}	
+		pthread_rwlock_unlock(&groups_rwlock);
 	}
 	pthread_exit(NULL);
 }
@@ -235,7 +242,7 @@ void apps_handler() {
 	int bytes = -1; // checking predifined functions errors
 	int code = -1; // error handling
 	int len = 0;
-	char** value = NULL;
+	char* value = NULL;
 	access_packet group_auth_info;
 	struct sockaddr_in local_server_addr;
 
@@ -247,14 +254,16 @@ void apps_handler() {
 		if(bytes != sizeof(access_packet)) {
 			continue;
 		}
+		
+		pthread_rwlock_rdlock(&groups_rwlock);
 
-		value = calloc(1, sizeof(char*));
-
-		get_from_hash_table(groups, group_auth_info.group_id, value);
+		get_from_hash_table(groups, group_auth_info.group_id, &value);
+			
+		pthread_rwlock_unlock(&groups_rwlock);
 
 		// handling auth_server thingys
-		code = *value ? strcmp(group_auth_info.secret, *value) == 0 ? 1 : -1 : -2;
-
+		code = value ? strcmp(group_auth_info.secret, value) == 0 ? 1 : -1 : -2;
+		free(value);
 		sendto(apps_auth_server_socket, &code, sizeof(int), MSG_CONFIRM, (struct sockaddr*)&local_server_addr, len);
 		// kinda irrelevant
 		if(bytes < 0) {
@@ -320,6 +329,8 @@ void setup_server() {
 	console_auth_server_addr.sin_addr.s_addr = inet_addr(AUTH_SERVER_ADDRESS);
 	console_auth_server_addr.sin_port = htons(CONSOLE_AUTH_SERVER_PORT);
 
+	pthread_rwlock_init(&groups_rwlock, NULL);
+
 	// bind the sockets
 	if(bind(apps_auth_server_socket, (struct sockaddr*)&apps_auth_server_addr, sizeof(apps_auth_server_addr)) < 0) {
 		perror("");
@@ -329,6 +340,8 @@ void setup_server() {
 		perror("");
 		exit(-1);
 	}
+
+	// TODO mutex init
 
 	//create hashtable to store the groups
 
@@ -345,6 +358,8 @@ int main(int argc, char const* argv[]) {
 	pthread_create(&console_handler_thread, NULL, console_handler, NULL);
 
 	apps_handler();
+	// TODO procurar na net signal from terminal
+	// pthread_rwlock_destroy(&groups_rwlock)
 
 	return 0;
 }
