@@ -1,27 +1,27 @@
+#include "hashtable-lib.h"
+
+#include <semaphore.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <semaphore.h>
 
 #define HASH_SIZE 11 // preference of prime number // it was 53
 #define MAX_KEY_SIZE 256
 
-#include "hashtable-lib.h"
-#include "../configs.h"
+#include "../KVS/configs.h"
 
-typedef struct _sem_list{
-	sem_t* sem_id;			// semaphore indentification
-	struct _sem_list* next;
-} sem_list;
+typedef struct _sem_list_t {
+	sem_t* sem_id; // semaphore indentification
+	struct _sem_list_t* next;
+} sem_list_t;
 
-typedef struct _key_pair {
+typedef struct _key_pair_t {
 	char* key;
 	char* value;
-	sem_list * head;
-	struct _key_pair* next;
-} key_pair;
-
+	sem_list_t* sem_head;
+	struct _key_pair_t* next;
+} key_pair_t;
 
 /*******************************************************************
 *
@@ -78,8 +78,8 @@ unsigned int hash(char* key) {
 ** Side-effects:
 *		There's no side-effect 
 *******************************************************************/
-void printf_hash_table(key_pair** hash_table) {
-	key_pair* hash_helper = NULL;
+void printf_hash_table(key_pair_t** hash_table) {
+	key_pair_t* hash_helper = NULL;
 	for(int i = 0; i < HASH_SIZE; i++) {
 		hash_helper = hash_table[i];
 		if(hash_helper == NULL) {
@@ -96,7 +96,7 @@ void printf_hash_table(key_pair** hash_table) {
 
 /*******************************************************************
 *
-**key_pair** create_hash_table() 
+**key_pair_t** create_hash_table() 
 *
 ** Description:
 *		Allocates and inicializes the memory necessary for the hash
@@ -106,14 +106,14 @@ void printf_hash_table(key_pair** hash_table) {
 *  		There are no paraments in this function
 *
 ** Return:
-*		This function returns the key_pair pointer of the array that
+*		This function returns the key_pair_t pointer of the array that
 *		represents the hash table that is supposed to store information
 *
 ** Side-effects:
 *		There's no side-effect
 *******************************************************************/
-key_pair** create_hash_table() {
-	key_pair** hash_table = calloc(HASH_SIZE, sizeof(char*));
+key_pair_t** create_hash_table() {
+	key_pair_t** hash_table = calloc(HASH_SIZE, sizeof(char*));
 
 	// hash needs to start empy
 	for(int i = 0; i < HASH_SIZE; i++) {
@@ -143,8 +143,8 @@ key_pair** create_hash_table() {
 ** Side-effects:
 *		There's no side-effect 
 *******************************************************************/
-void destroy_hash_table(key_pair** hash_table) {
-	key_pair *key_pair = NULL, *key_pair_aux = NULL;
+void destroy_hash_table(key_pair_t** hash_table) {
+	key_pair_t *key_pair = NULL, *key_pair_aux = NULL;
 
 	for(int i = 0; i < HASH_SIZE; i++) {
 		key_pair = hash_table[i];
@@ -192,11 +192,11 @@ void destroy_hash_table(key_pair** hash_table) {
 ** Side-effects:
 *		There's no side-effect 
 *******************************************************************/
-int put_on_hash_table(key_pair** hash_table, char* key, char* value) {
-	key_pair* old_head = NULL;
-	key_pair* new_key = NULL;
+int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
+	key_pair_t* old_head = NULL;
+	key_pair_t* new_key = NULL;
 
-	key_pair* key_pair = NULL;
+	key_pair_t* key_pair = NULL;
 	int hash_position = 0;
 
 	hash_position = hash(key);
@@ -212,28 +212,28 @@ int put_on_hash_table(key_pair** hash_table, char* key, char* value) {
 
 	// create new key/pair value
 	if(key_pair == NULL) {
-		new_key = calloc(1, sizeof(key_pair));
+		new_key = calloc(1, sizeof(key_pair_t));
 
-		new_key->next = hash_table[hash_position];
-		new_key->key = malloc((strlen(key) + 1) * sizeof(char));
-		new_key->value = malloc((strlen(value) + 1) * sizeof(char));
-		new_key->head = NULL;
+		new_key->next = NULL;
+
+		new_key->key = calloc(strlen(key) + 1, sizeof(char));
+		new_key->value = calloc(strlen(value) + 1, sizeof(char));
+		new_key->sem_head = NULL;
 
 		strcpy(new_key->key, key);
 		strcpy(new_key->value, value);
 
 		hash_table[hash_position] = new_key;
-		
+
+		return CREATED;
 	}
 	// update already existing key/pair value
-	else if(strcmp(key_pair->value, value) != 0){
+	else if(strcmp(key_pair->value, value) != 0) {
 		free(key_pair->value);
 		key_pair->value = malloc((strlen(value) + 1) * sizeof(char));
 		strcpy(key_pair->value, value);
 		return UPDATE;
 	}
-
-	return SUCCESSFUL_OPERATION; // it means it was a success
 }
 
 /*******************************************************************
@@ -261,15 +261,10 @@ int put_on_hash_table(key_pair** hash_table, char* key, char* value) {
 ** Side-effects:
 *		There's no side-effect 
 *******************************************************************/
-void put_sem_on_hash_table(key_pair** hash_table, char* key, void *sem_id){
-	
-	key_pair* key_pair = NULL;
+int put_sem_on_hash_table(key_pair_t** hash_table, char* key, sem_t* sem_id) {
+	key_pair_t* key_pair = NULL;
 	int hash_position = 0;
-
-	sem_list* aux = NULL;
-
-	sem_list* new_sem = calloc(1, sizeof(sem_list));
-	new_sem->sem_id = (sem_t *) sem_id;
+	sem_list_t* new_sem = NULL;
 
 	hash_position = hash(key);
 
@@ -282,11 +277,22 @@ void put_sem_on_hash_table(key_pair** hash_table, char* key, void *sem_id){
 		key_pair = key_pair->next;
 	}
 
-	aux = key_pair->head;
-	key_pair->head = new_sem;
-	new_sem->next = aux;
+	if(key_pair) {
+		new_sem = calloc(1, sizeof(sem_list_t));
+		if(new_sem == NULL) {
+			// TODO
+		}
 
-	return ;
+		new_sem->sem_id = sem_id;
+		//new_sem->next = key_pair->sem_head;
+
+		//key_pair->sem_head = new_sem;
+
+	} else {
+		// TODO
+	}
+
+	return 0;
 }
 
 /*******************************************************************
@@ -313,9 +319,9 @@ void put_sem_on_hash_table(key_pair** hash_table, char* key, void *sem_id){
 *		There's no side-effect 
 *		TODO: error handling for the returns
 *******************************************************************/
-int get_from_hash_table(key_pair** hash_table, char* key, char** value) {
+int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
 	char* new_value;
-	key_pair* key_pair;
+	key_pair_t* key_pair;
 
 	// return 1 if it exists
 	// return 0 if it doesnt exist
@@ -366,18 +372,18 @@ int get_from_hash_table(key_pair** hash_table, char* key, char** value) {
 ** Side-effects:
 *		There's no side-effect 
 *******************************************************************/
-void delete_sem_list(key_pair* key_given){
+void delete_sem_list(key_pair_t* key_given) {
+	/*
+	sem_list_t* head = key_given->sem_head;
+	sem_list_t* deleting_item = key_given->sem_head;
 
-	sem_list* head = key_given->head;
-	sem_list* deleting_item = key_given->head;
-	
 	while(head != NULL) {
 		head = head->next;
 		free(deleting_item);
-		deleting_item = head;	
+		deleting_item = head;
 	}
-
-	return ;
+*/
+	return;
 }
 
 /*******************************************************************
@@ -403,9 +409,9 @@ void delete_sem_list(key_pair* key_given){
 ** Side-effects:
 *		There's no side-effects in this function
 *******************************************************************/
-int delete_from_hash_table(key_pair** hash_table, char* key) {
-	key_pair* key_before = NULL;
-	key_pair* key_pair = NULL;
+int delete_from_hash_table(key_pair_t** hash_table, char* key) {
+	key_pair_t* key_before = NULL;
+	key_pair_t* key_pair = NULL;
 	// return 1 means that it was possible to delete
 	// return 0 means that it wasn't possible to delete
 
@@ -460,8 +466,8 @@ int delete_from_hash_table(key_pair** hash_table, char* key) {
 *		keys in the hash table, it can take a long time to count
 *		all of them
 *******************************************************************/
-int get_number_of_entries(key_pair** hash_table) {
-	key_pair* key_pair = NULL;
+int get_number_of_entries(key_pair_t** hash_table) {
+	key_pair_t* key_pair = NULL;
 	int entries = 0;
 
 	for(int i = 0; i < HASH_SIZE; i++) {

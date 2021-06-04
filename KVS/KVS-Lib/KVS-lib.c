@@ -10,6 +10,7 @@
 #include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include "../configs.h"
 typedef struct _callback_t {
@@ -17,6 +18,7 @@ typedef struct _callback_t {
 	char name[MAX_NAME + 1];
 	char key[MAX_KEY + 1];
 	pthread_t thread;
+	sem_t* sem_id;
 	struct _callback_t* next;
 } callback_t;
 
@@ -31,19 +33,12 @@ void* callback_handler(void* callback_info) {
 	int bytes;
 	char response;
 
-	sem_t* sem_id;
-
-	sem_id = sem_open(((callback_t*)callback_info)->name, O_CREAT, 0666, 0);
-
-	while(sem_wait(sem_id) >= 0) {
+	while(sem_wait(((callback_t*)callback_info)->sem_id) >= 0) {
 		(((callback_t*)callback_info)->callback_function)(((callback_t*)callback_info)->key);
 	}
 
-	sem_close(sem_id);
+	sem_close(((callback_t*)callback_info)->sem_id);
 	sem_unlink(((callback_t*)callback_info)->name);
-
-	free(((callback_t*)callback_info)->name);
-	free(((callback_t*)callback_info));
 
 	pthread_exit(NULL);
 }
@@ -51,7 +46,7 @@ void* callback_handler(void* callback_info) {
 void* callback_socket_handler(void* args) {
 	int bytes = 0;
 	char key[MAX_KEY + 1];
-	callback_t *aux = callbacks_list;
+	callback_t* aux = callbacks_list;
 
 	while(1) {
 		bytes = read(cb_socket, key, MAX_KEY + 1);
@@ -62,15 +57,16 @@ void* callback_socket_handler(void* args) {
 		while(1) {
 		}
 
-		pthread_cancel();
+		//pthread_cancel();
 	}
 }
 
-
+//
 
 int establish_connection(char* group_id, char* secret) {
 	int bytes = 0;
 	int response = 0;
+	int err = 0;
 
 	struct sockaddr_un app_addr;
 	struct sockaddr_un cb_addr;
@@ -129,7 +125,7 @@ int establish_connection(char* group_id, char* secret) {
 		cb_local_server_addr.sun_family = AF_UNIX;
 		sprintf(cb_local_server_addr.sun_path, CB_LOCAL_SERVER_ADDRESS);
 
-		int err = bind(app_socket, (struct sockaddr*)&app_addr, sizeof(struct sockaddr_un));
+		err = bind(app_socket, (struct sockaddr*)&app_addr, sizeof(struct sockaddr_un));
 		if(err == -1) {
 			close(app_socket);
 			app_socket = -1;
@@ -139,7 +135,7 @@ int establish_connection(char* group_id, char* secret) {
 			return UNABLE_TO_CONNECT;
 		}
 
-		int err = bind(cb_socket, (struct sockaddr*)&cb_addr, sizeof(struct sockaddr_un));
+		err = bind(cb_socket, (struct sockaddr*)&cb_addr, sizeof(struct sockaddr_un));
 		if(err == -1) {
 			close(app_socket);
 			app_socket = -1;
@@ -149,8 +145,8 @@ int establish_connection(char* group_id, char* secret) {
 			return UNABLE_TO_CONNECT;
 		}
 
-		int connect_error = connect(app_socket, (struct sockaddr*)&local_server_addr, sizeof(struct sockaddr_un));
-		if(connect_error == -1) {
+		err = connect(app_socket, (struct sockaddr*)&local_server_addr, sizeof(struct sockaddr_un));
+		if(err == -1) {
 			close(app_socket);
 			app_socket = -1;
 			close(cb_socket);
@@ -159,8 +155,8 @@ int establish_connection(char* group_id, char* secret) {
 			return UNABLE_TO_CONNECT;
 		}
 
-		int connect_error = connect(cb_socket, (struct sockaddr*)&cb_local_server_addr, sizeof(struct sockaddr_un));
-		if(connect_error == -1) {
+		err = connect(cb_socket, (struct sockaddr*)&cb_local_server_addr, sizeof(struct sockaddr_un));
+		if(err == -1) {
 			close(app_socket);
 			app_socket = -1;
 			close(cb_socket);
@@ -343,6 +339,7 @@ int delete_value(char* key) {
 int register_callback(char* key, void (*callback_function)(char*)) {
 	char type = RCB;
 	int bytes = 0;
+	int response = 0;
 
 	callback_t *callback_info = NULL, *aux = callbacks_list;
 
@@ -370,12 +367,8 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 			aux = aux->next;
 		}
 
+		//creates callback if it doesn't exist yet
 		if(aux == NULL) {
-			bytes = write(app_socket, &type, sizeof(type));
-			if(bytes == 0) {
-				// TODO
-			}
-
 			callback_info = calloc(1, sizeof(callback_t));
 			if(callback_info == NULL) {
 				// TODO
@@ -383,31 +376,52 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 
 			strncpy(callback_info->key, key, MAX_KEY);
 
-			strpcy(callback_info->name, int2str(getpid()));
+			strcpy(callback_info->name, int2str(getpid()));
 			strcat(callback_info->name, "_");
 			strcat(callback_info->name, callback_info->key);
 
 			callback_info->callback_function = callback_function;
+
+			callback_info->sem_id = sem_open(callback_info->name, O_CREAT, S_IROTH | S_IWOTH, 0);
+
+			bytes = write(app_socket, &type, sizeof(type));
+			if(bytes == 0) {
+				// TODO
+			}
 
 			bytes = write(app_socket, callback_info->key, (MAX_KEY + 1) * sizeof(char));
 			if(bytes == 0) {
 				// TODO
 			}
 
-			bytes = write(app_socket, callback_info->name, (MAX_NAME + 1) * sizeof(char));
-			if(bytes == 0) {
+			bytes = read(app_socket, &response, sizeof(int));
+			if(bytes == -1) {
 				// TODO
 			}
 
-			callback_info->next = callbacks_list;
-			callbacks_list = callback_info;
+			// TODO
+			if(response) {
+				callback_info->next = callbacks_list;
+				callbacks_list = callback_info;
 
-			pthread_create(&(callback_info->thread), NULL, callback_handler, callback_info);
-		} else {
-			callback_info->callback_function = callback_function;
+				pthread_create(&(callback_info->thread), NULL, callback_handler, callback_info);
+
+				return SUCCESSFUL_OPERATION;
+			} else {
+				sem_close(callback_info->sem_id);
+				sem_unlink(callback_info->name);
+				free(callback_info);
+
+				return UNSUCCESSFUL_OPERATION;
+			}
+
 		}
+		// updates callback function if one already exists
+		else {
+			aux->callback_function = callback_function;
 
-		return SUCCESSFUL_OPERATION;
+			return SUCCESSFUL_OPERATION;
+		}
 	}
 }
 

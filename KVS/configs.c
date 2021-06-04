@@ -91,7 +91,7 @@ void print_success(char* description, char* data) {
 * TODO: bruno confere esta parte 
 *******************************************************************/
 char* int2str(int val) {
-	char str[15];
+	char *str = calloc(15, sizeof(char));
 
 	sprintf(str, "%d", val);
 

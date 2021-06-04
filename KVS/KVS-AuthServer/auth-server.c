@@ -16,7 +16,7 @@
 int apps_auth_server_socket = -1;
 int console_auth_server_socket = -1;
 
-key_pair** groups;
+key_pair_t** groups;
 
 /*************************************************************************
 *

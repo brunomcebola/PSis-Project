@@ -73,6 +73,7 @@ typedef struct {
 #define SUCCESSFUL_OPERATION 1
 #define UNSUCCESSFUL_OPERATION -1
 
+#define CREATED 1
 #define UPDATE 2
 
 #define WRONG_KEY 0

@@ -32,7 +32,7 @@ typedef struct _connection_t {
 
 typedef struct _group {
 	char group_id[MAX_GROUP_ID + 1];
-	key_pair** hash_table;
+	key_pair_t** hash_table;
 	struct _group* next;
 } group_t;
 
@@ -49,7 +49,6 @@ struct sockaddr_un local_server_unix_socket_addr;
 struct sockaddr_un cb_local_server_unix_socket_addr;
 struct sockaddr_in apps_auth_server_inet_socket_addr;
 struct sockaddr_in console_auth_server_inet_socket_addr;
-
 
 void close_connection(connection_t* connection) {
 	time_t t;
@@ -232,16 +231,6 @@ void delete_value(connection_t* connection, group_t* group) {
 		close_connection(connection);
 	}
 
-	// messaging the registar_callback that the key was deleted
-	fd = get_sem_pipe_from_hash_table(group->hash_table, key);
-	while(fd != 0) {
-		bytes = write(fd, DEL, sizeof(char));
-		if(bytes != sizeof(char)) {
-			close_connection(connection);
-		}
-		fd = get_sem_pipe_from_hash_table(group->hash_table, key);
-	}
-		
 	pthread_mutex_lock(&connection->mutex);
 	code = delete_from_hash_table(group->hash_table, key);
 	pthread_mutex_unlock(&connection->mutex);
@@ -255,51 +244,34 @@ void delete_value(connection_t* connection, group_t* group) {
 }
 
 // TODO: missing code commentary
-void register_callback(void* connection, group_t* group) {
-	int len = 0;
+void register_callback(connection_t* connection, group_t* group) {
 	int bytes = 0;
 	int code = 0;
-	char* key;
-	char* name;
-	int fd;
+	char key[MAX_KEY + 1];
+	char name[MAX_NAME + 1];
 	sem_t* sem_id;
 
 	// reading key
-	bytes = read(((connection_t*)connection)->socket, &len, sizeof(int));
-	if(bytes == -1) {
-		perror("");
-		exit(-1);
-	}
-
-	key = calloc(len, sizeof(char));
-	bytes = read(((connection_t*)connection)->socket, key, len);
-	if(bytes == -1) {
-		perror("");
-		exit(-1);
+	bytes = read(connection->socket, key, (MAX_KEY + 1) * sizeof(char));
+	if(bytes != (MAX_KEY + 1) * sizeof(char)) {
+		close_connection(connection);
 	}
 
 	// reading semaphore/pipe name
-	bytes = read(((connection_t*)connection)->socket, &len, sizeof(int));
-	if(bytes == -1) {
-		perror("");
-		exit(-1);
+	bytes = read(connection->socket, name, (MAX_NAME + 1) * sizeof(char));
+	if(bytes != (MAX_NAME + 1) * sizeof(char)) {
+		close_connection(connection);
 	}
 
-	name = calloc(len, sizeof(char));
-	bytes = read(((connection_t*)connection)->socket, name, len);
-	if(bytes == -1) {
-		perror("");
-		exit(-1);
+	sem_id = sem_open(name, O_CREAT, S_IROTH | S_IWOTH, 0);
+
+	code = put_sem_on_hash_table(group->hash_table, key, sem_id);
+
+	bytes = write(connection->socket, &code, sizeof(int));
+	if(bytes != sizeof(int)) {
+		close_connection(connection);
 	}
 
-	sem_id = sem_open(name, O_CREAT, 0666, 0);
-
-	code = put_sem_pipe_on_hash_table(group->hash_table, key, sem_id, fd);
-
-	// TODO handling the code
-
-	free(key);
-	free(name);
 	return;
 }
 
@@ -367,10 +339,8 @@ void* connection_handler(void* connection) {
 
 	while(1) {
 		bytes = read(((connection_t*)connection)->socket, &operation_type, sizeof(char));
-		if(bytes == 0) {
-			close_connection((connection_t*)connection);
-		}
 		if(bytes != sizeof(char)) {
+			close_connection((connection_t*)connection);
 		}
 
 		switch(operation_type) {
@@ -387,7 +357,7 @@ void* connection_handler(void* connection) {
 				break;
 
 			case RCB:
-				register_callback(connection, group);
+				register_callback((connection_t*)connection, group);
 				break;
 		}
 	}
@@ -407,24 +377,30 @@ void* connections_listener(void* arg) {
 		if(connection->socket != -1) {
 			// isto não está a fazer com que fique tudo parado à espera ?
 			connection->cb_socket = accept(cb_local_server_unix_socket, NULL, NULL);
-			t = time(NULL);
-			localtime_r(&t, &tm);
-			sprintf(connection->open_time,
-					"%02d-%02d-%d %02d:%02d:%02d",
-					tm.tm_mday,
-					tm.tm_mon + 1,
-					tm.tm_year + 1900,
-					tm.tm_hour,
-					tm.tm_min,
-					tm.tm_sec);
+			if(connection->cb_socket == -1) {
+				close(connection->socket);
+				free(connection);
+			} else {
+				t = time(NULL);
+				localtime_r(&t, &tm);
+				sprintf(connection->open_time,
+						"%02d-%02d-%d %02d:%02d:%02d",
+						tm.tm_mday,
+						tm.tm_mon + 1,
+						tm.tm_year + 1900,
+						tm.tm_hour,
+						tm.tm_min,
+						tm.tm_sec);
 
-			connection->close_time[0] = '\0';
+				connection->close_time[0] = '\0';
 
-			connection->next = connections_list;
+				connection->next = connections_list;
 
-			connections_list = connection;
+				connections_list = connection;
 
-			pthread_create(&(connection->thread), NULL, connection_handler, connection);
+				pthread_create(&(connection->thread), NULL, connection_handler, connection);
+			}
+
 		} else {
 			free(connection);
 		}
@@ -434,6 +410,8 @@ void* connections_listener(void* arg) {
 // TODO: missing code commentary
 void start_connections() {
 	listen(local_server_unix_socket, 10);
+
+	listen(cb_local_server_unix_socket, 10);
 
 	pthread_create(&listening_thread, NULL, connections_listener, NULL);
 }
@@ -536,7 +514,8 @@ int setup_connections() {
 	unlink(CB_LOCAL_SERVER_ADDRESS);
 
 	// bind unix socket to connect the requests from apps to the localserver
-	int err = bind(local_server_unix_socket, (struct sockaddr*)&(local_server_unix_socket_addr), sizeof(struct sockaddr_un));
+	int err;
+	err = bind(local_server_unix_socket, (struct sockaddr*)&(local_server_unix_socket_addr), sizeof(struct sockaddr_un));
 	if(err == -1) {
 		close(apps_local_server_inet_socket);
 		apps_local_server_inet_socket = -1;
@@ -551,7 +530,7 @@ int setup_connections() {
 	}
 
 	// bind unix socket to connect the apps callbacks to the localserver
-	int err = bind(cb_local_server_unix_socket, (struct sockaddr*)&(cb_local_server_unix_socket_addr), sizeof(struct sockaddr_un));
+	err = bind(cb_local_server_unix_socket, (struct sockaddr*)&(cb_local_server_unix_socket_addr), sizeof(struct sockaddr_un));
 	if(err == -1) {
 		close(apps_local_server_inet_socket);
 		apps_local_server_inet_socket = -1;
