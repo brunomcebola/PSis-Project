@@ -324,9 +324,9 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 *						known by the user of this function
 *
 ** Return:
-*		This function returns WRONG_KEY if the isn't in the hash table
-*		and SUCCESSFUL_OPERATION if it was possible to find the key.
-*		TODO
+*		This function returns NONEXISTENT_KEY if the value isn't in 
+*		the hash table and SUCCESSFUL_OPERATION if it was possible 
+*		to find the key.
 *
 ** Side-effects:
 *		There's no side-effect 
@@ -442,7 +442,8 @@ int delete_from_hash_table(key_pair_t** hash_table, char* key) {
 	if(key_pair) {
 		free(key_pair->key);
 		free(key_pair->value);
-		// TODO: STILL NEEDS TO DELETE LIST OF SEMAPHORES
+		//check if the functions works fine
+		delete_sem_list(key_pair);
 		if(key_before == NULL)
 			hash_table[hash_position] = key_pair->next;
 		else

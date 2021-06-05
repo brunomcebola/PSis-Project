@@ -57,7 +57,7 @@ char* generate_secret() {
 
 /*************************************************************************
 *
-** void create_group() 
+** void create_group(struct sockaddr_in* addr, char* group_id) 
 *
 ** Description:
 *		Stores the new group in an hash-table.

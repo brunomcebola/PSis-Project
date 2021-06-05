@@ -15,7 +15,7 @@
 
 /*******************************************************************
 *
-** void delete_group_UI() 
+** void create_group_UI() 
 *
 ** Description:
 *		Calls the algorithm that will create the group in the
