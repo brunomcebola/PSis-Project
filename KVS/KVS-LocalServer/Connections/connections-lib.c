@@ -52,7 +52,6 @@ struct sockaddr_in console_auth_server_inet_socket_addr;
 
 // TODO APAGAR O WRONG_KEY
 
-
 /*******************************************************************
 * 
 ** void setup_connections() 
@@ -770,7 +769,7 @@ int group_info(char* group_id, char** secret, int* num_pairs) {
 		}
 
 		*secret = calloc(MAX_SECRET + 1, sizeof(char));
-		if(*secret = NULL){
+		if(*secret = NULL) {
 			return NO_MEMORY_AVAILABLE;
 		}
 
@@ -872,7 +871,7 @@ int create_group(char* group_id, char** secret) {
 		return RECEIVED_BROKEN_MESSAGE;
 	}
 
-	if((*secret) == '\0'){
+	if(strlen(*secret) == 0) {
 		return UNSUCCESSFUL_OPERATION;
 	}
 
@@ -1027,7 +1026,7 @@ int delete_group(char* group_id) {
 			before_group->next = group->next;
 		}
 
-		if(pthread_rwlock_unlock(&group_list_rwlock) == 0 ){
+		if(pthread_rwlock_unlock(&group_list_rwlock) == 0) {
 			return UNSUCCESSFUL_OPERATION;
 		}
 
