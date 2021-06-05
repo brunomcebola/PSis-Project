@@ -54,7 +54,10 @@ struct sockaddr_in console_auth_server_inet_socket_addr;
 ** void setup_connections() 
 *
 ** Description:
-*		
+*		It starts all connections between application and local 
+*		server and between local server and authentication server.
+*		It also inicializates all the necessary global mutexes
+*		so it's possible to have synchronization
 *
 ** Parameters:
 *  		This function has no parameters
@@ -62,11 +65,13 @@ struct sockaddr_in console_auth_server_inet_socket_addr;
 ** Return:
 *		Returns an int indicating if the the setup was successful 
 *		(SUCCESSFUL_CONNECTION) or if it failed (UNABLE_TO_CONNECT).
+*		It also return UNSUCCESSFUL_OPERATION if the mutexes 
+*		couldn't be inicialized.
 *		
 *
 ** Side-effects:
 *		There are no side-effects
-*		TODO: wrong commentary
+*
 *******************************************************************/
 int setup_connections() {
 	// CONNECTIONS TO AUTH SERVER
@@ -214,7 +219,7 @@ void close_connection(connection_t* connection, group_t* group, int list_critica
 	pthread_exit(0);
 }
 
-/*******************************************************************
+/***************************************************** **************
 *
 ** void put_value(connection_t* connection, group_t* group) 
 *
@@ -235,9 +240,6 @@ void close_connection(connection_t* connection, group_t* group, int list_critica
 *		If a write or a read from the socket is not successful then the 
 *		connection is terminated (both thread and socket get closed)
 *	
-//	TODO: check put_on_hash_table return code
-//	TODO: synchronization missing
-//  TODO: callback call
 *
 *******************************************************************/
 void put_value(connection_t* connection) {
@@ -306,12 +308,11 @@ void put_value(connection_t* connection) {
 *		If a write or a read from the socket is not successful then the 
 *		connection is terminated (both thread and socket get closed)
 *
-//	TODO: check get_from_hash_table assigned value if key nonexistent
-//	TODO: synchronization missing
 *	
 *******************************************************************/
 void get_value(connection_t* connection) {
 	int bytes = 0, len = 0;
+	int code = 0;
 	char *key = NULL, *value = NULL;
 
 	bytes = read(connection->socket, &len, sizeof(int));
@@ -329,7 +330,11 @@ void get_value(connection_t* connection) {
 		close_connection(connection, connection->group, 0, 1);
 	}
 
-	get_from_hash_table(connection->group->hash_table, key, &value);
+	code = get_from_hash_table(connection->group->hash_table, key, &value);
+	if(code == NONEXISTENT_KEY){
+		// TODO ver isto melhor
+		close_connection(connection, connection->group, 0, 1);
+	}
 
 	len = strlen(value) + 1;
 	bytes = write(connection->socket, &len, sizeof(int));
@@ -364,9 +369,6 @@ void get_value(connection_t* connection) {
 ** Side-effects:
 *		If a write or a read from the socket is not successful then the 
 *		connection is terminated (both thread and socket get closed)
-*	
-//	TODO: check delete_from_hash_table return code
-//	TODO: synchronization missing
 *
 *******************************************************************/
 void delete_value(connection_t* connection) {
@@ -445,8 +447,6 @@ void* connection_handler(void* connection) {
 	}
 
 	((connection_t*)connection)->pid = connection_info.pid;
-
-	// TODO falta sync de coms com auth server
 
 	// send informaton to auth server
 	bytes = sendto(apps_local_server_inet_socket,
@@ -604,10 +604,38 @@ void start_connections() {
 	pthread_create(&listening_thread, NULL, connections_listener, NULL);
 }
 
-// CONSOLE HANDLING FUNCTIONS
+// console handling functions
 
-// TODO: missing code commentary
-void group_info(char* group_id, char** secret, int* num_pairs) {
+
+/*******************************************************************
+* 
+** int group_info(char* group_id, char** secret, int* num_pairs) 
+*
+** Description:
+*		Asks the authentication server if the group exists, and if it
+*		does, it returns the secret so it's possible to give the 
+*		information to the "admin"
+*
+** Parameters:
+*  		@param group_id - string that identifies the group
+*  		@param secret - pointer of a string that specifies secret of a group
+*		@param num_pairs - pointer of int that says how many keys there are
+*						in this specified group
+*
+** Return:
+*		Returns an int indicating if the message sent was unsuccessful 
+*		(SENT_BROKEN_MESSAGE) or if the message receive 
+*		failed (RECEIVED_BROKEN_MESSAGE).
+*		It returns NON_EXISTED_GROUP if there's no group with that id
+*		and returns SUCCESSFULL_OPERATION if it was possible to give
+*		the group information
+*		
+*
+** Side-effects:
+*		There are no side-effects
+*		TODO: check commentary
+*******************************************************************/
+int group_info(char* group_id, char** secret, int* num_pairs) {
 	group_t* group = groups_list;
 	int bytes = -1;
 	int len = sizeof(struct sockaddr_in);
@@ -620,6 +648,7 @@ void group_info(char* group_id, char** secret, int* num_pairs) {
 		group = group->next;
 	}
 
+	// it means it's the group we wanted
 	if(group != NULL) {
 		operation.type = GET;
 		strncpy(operation.group_id, group_id, MAX_GROUP_ID);
@@ -631,8 +660,7 @@ void group_info(char* group_id, char** secret, int* num_pairs) {
 					   (struct sockaddr*)&console_auth_server_inet_socket_addr,
 					   len);
 		if(bytes == -1) {
-			perror("");
-			exit(-1);
+			return SENT_BROKEN_MESSAGE;
 		}
 
 		*secret = calloc(MAX_SECRET + 1, sizeof(char));
@@ -645,25 +673,50 @@ void group_info(char* group_id, char** secret, int* num_pairs) {
 						 &len);
 
 		if(bytes == -1) {
-			exit(-1);
-			// TODO
+			return RECEIVED_BROKEN_MESSAGE;
 		}
 
 		*num_pairs = get_number_of_entries(group->hash_table);
 
 	} else {
-		// faz sentido ser so erro mesmo, se deu merda deu merda
-		// TODO: decide if returns secret or error
+		return NONEXISTENT_GROUP;
 	}
+	return SUCCESSFUL_OPERATION;
 }
 
-// TODO: missing code commentary
-char* create_group(char* group_id) {
+/*******************************************************************
+* 
+** char* create_group(char* group_id, char** secret)
+*
+** Description:
+*		This function creates memory in the local server for the group
+*		that the "admin" asks for, and communicates with the authentication
+*		server to do so. The authentication returns the secret and with that
+*		it's possible to know that it was possible to know if the groups was
+*		created.
+*
+** Parameters:
+*  		@param group_id - string that identifies the group
+*  		@param secret - pointer of a string that specifies secret of a group
+*
+** Return:
+*		Returns an int indicating if the message sent was unsuccessful 
+*		(SENT_BROKEN_MESSAGE) or if the message receive 
+*		failed (RECEIVED_BROKEN_MESSAGE).
+*		It returns UNSUCCESSFULL_OPERATION if the calloc doesn't work
+*		and returns SUCCESSFULL_OPERATION if it was possible to give
+*		the group information
+*		
+*
+** Side-effects:
+*		There are no side-effects
+*		TODO: check commentary
+*******************************************************************/
+int create_group(char* group_id, char** secret) {
 	group_t* group = groups_list;
 	int bytes = -1;
 	int len = sizeof(struct sockaddr_in);
 	operation_packet operation;
-	char* secret = NULL;
 
 	pthread_rwlock_wrlock(&group_list_rwlock);
 
@@ -684,24 +737,25 @@ char* create_group(char* group_id) {
 				   MSG_CONFIRM,
 				   (struct sockaddr*)&console_auth_server_inet_socket_addr,
 				   len);
-	if(bytes == -1) {
-		// TODO
+	if(bytes != sizeof(operation)) {
+		return SENT_BROKEN_MESSAGE;
 	}
 
-	secret = calloc(MAX_SECRET + 1, sizeof(char));
-	if(secret == NULL) {
-		// TODO
+	(*secret) = calloc(MAX_SECRET + 1, sizeof(char));
+	if((*secret) == NULL) {
+		return UNSUCCESSFUL_OPERATION;
 	}
 
 	bytes = recvfrom(console_local_server_inet_socket,
-					 secret,
+					 *secret,
 					 MAX_SECRET + 1,
 					 MSG_WAITALL,
 					 (struct sockaddr*)&console_auth_server_inet_socket_addr,
 					 &len);
-	if(bytes == -1) {
-		// TODO
+	if(bytes != MAX_SECRET + 1) {
+		return RECEIVED_BROKEN_MESSAGE;
 	}
+
 
 	if(group == NULL) {
 		group = calloc(1, sizeof(group_t));
@@ -713,7 +767,7 @@ char* create_group(char* group_id) {
 		group->next = groups_list;
 
 		if(pthread_rwlock_init(&group->rwlock, NULL) != 0) {
-			// TODO
+			return UNSUCCESSFUL_OPERATION;
 		}
 
 		groups_list = group;
@@ -725,27 +779,74 @@ char* create_group(char* group_id) {
 
 	pthread_rwlock_unlock(&group_list_rwlock);
 
-	return secret;
+	return SUCCESSFUL_OPERATION;
 }
 
-// TODO: missing code commentary
+
+/*******************************************************************
+* 
+**void app_status() 
+*
+** Description:
+*		This functions shows all information of all the the key-value 
+*		pair in a certain group logged in the local server. All the
+*		information is the pid, opened time and closed time of the application
+*		related to the respective key-value pair. Closed time will 
+*		be 0 if the application haven't been disconnected.
+*
+** Parameters:
+*  		This function doesn't have any parameters
+*
+** Return:
+*		This functions doesn't return anything
+*		
+*
+** Side-effects:
+*		There are no side-effects
+*		TODO: check commentary
+*******************************************************************/
 void app_status() {
 	connection_t* connection = connections_list;
+	char* buffer = int2str(connection->pid);
 
 	if(connection == NULL) {
 		printf("No app has connected so far\n\n");
 	} else {
 		while(connection != NULL) {
-			print_success("PID", int2str(connection->pid));
+			print_success("PID", buffer	);
 			print_success("Connection establishing time", connection->open_time);
 			print_success("Connection close time", connection->close_time);
 			printf("\n");
 			connection = connection->next;
 		}
 	}
+	free(buffer);
 }
 
-// TODO: missing code commentary
+/*******************************************************************
+* 
+**int delete_group(char* group_id) 
+*
+** Description:
+*		It searches for a certain group and deletes all the data
+*		attached to it. It also communicates with the authentication
+*		sever so it does the same on the authentication side.
+*
+** Parameters:
+*  		@param group_id - string that identifies the group
+*
+** Return:
+*		This functions returns NONEXISTENT_GROUP if there's no group
+*		with that group_id. Returns an int indicating if the message 
+*		sent was unsuccessful (SENT_BROKEN_MESSAGE) or if the message
+*		receive failed (RECEIVED_BROKEN_MESSAGE). It returns 
+*		SUCCESSFUL_OPERATION if it was possible to delete the group.
+*		
+*
+** Side-effects:
+*		There are no side-effects
+*		TODO: check commentary
+*******************************************************************/
 int delete_group(char* group_id) {
 	group_t* group = groups_list;
 	group_t* before_group = groups_list;
@@ -774,8 +875,8 @@ int delete_group(char* group_id) {
 					   MSG_CONFIRM,
 					   (struct sockaddr*)&console_auth_server_inet_socket_addr,
 					   len);
-		if(bytes == -1) {
-			return UNSUCCESSFUL_OPERATION;
+		if(bytes != sizeof(operation)) {
+			return SENT_BROKEN_MESSAGE;
 		}
 
 		bytes = recvfrom(console_local_server_inet_socket,
@@ -785,8 +886,11 @@ int delete_group(char* group_id) {
 						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
 						 &len);
 
-		if(bytes == -1) {
-			return UNSUCCESSFUL_OPERATION;
+		if(bytes != sizeof(int)) {
+			return RECEIVED_BROKEN_MESSAGE;
+		}
+		if(response == WRONG_KEY){
+			return NONEXISTENT_GROUP;
 		}
 
 		// removing group from the list
@@ -803,9 +907,10 @@ int delete_group(char* group_id) {
 		free(group->hash_table);
 		free(group);
 
-	} else {
-		// TODO: decide if returns secret or error
+	} 
+	else {
+		return NONEXISTENT_GROUP;
 	}
 
-	return 1;
+	return SUCCESSFUL_OPERATION;
 }

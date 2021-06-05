@@ -47,7 +47,7 @@ typedef struct _key_pair_t {
 *
 ** Side-effects:
 *		There's no side-effect 
-*		TODO: checkar melhor se realmente não tem side-effect
+*
 *******************************************************************/
 unsigned int hash(char* key) {
 	/*******************************************
@@ -166,8 +166,6 @@ void destroy_hash_table(key_pair_t** hash_table) {
 			}
 		}
 	}
-
-	return;
 }
 
 /*******************************************************************
@@ -194,7 +192,9 @@ void destroy_hash_table(key_pair_t** hash_table) {
 *		the value was different and return SUCCESSFUL_OPERATION otherwhise
 *
 ** Side-effects:
-*		There's no side-effect 
+*		If it's an update it posts the semaphores so the registers
+*		callback knows that there's has been an update on the the key
+*
 *******************************************************************/
 int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 	key_pair_t* old_head = NULL;
@@ -249,7 +249,7 @@ int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 
 /*******************************************************************
 *
-**int put_on_hash_table() 
+**int put_sem_on_hash_table() 
 *
 ** Description:
 *		Stores the semaphore id information in the hash table so
@@ -261,13 +261,15 @@ int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 *							hashtable used to store information
 *		@param key - string that it's supposed t be stored and
 *					represents a certain value
-*		@param sem_id - pointer of void that will represent the 
+*		@param sem_name - pointer of void that will represent the 
 *						sem_t from the <semaphore.h> library and
 *						that indicates which semaphore is used
 *						for this key
 *
 ** Return:
-*		This function doesn't return anything
+*		This function returns SUCCESSFUL_OPERATION if it was possible
+*		to store the semaphore name. It returns UNSUCCESSFUL_OPERATION
+*		if the calloc can't allocate or inicialize the memory
 *
 ** Side-effects:
 *		There's no side-effect 
@@ -291,7 +293,7 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 	if(key_pair) {
 		new_sem = calloc(1, sizeof(sem_list_t));
 		if(new_sem == NULL) {
-			// TODO
+			return UNSUCCESSFUL_OPERATION;
 		}
 
 		new_sem->sem_id = sem_open(sem_name, O_CREAT, 0600, 0);
@@ -300,11 +302,8 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 
 		key_pair->sem_head = new_sem;
 
-	} else {
-		// TODO
 	}
-
-	return 0;
+	return SUCCESSFUL_OPERATION;
 }
 
 /*******************************************************************
@@ -324,13 +323,12 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 *						known by the user of this function
 *
 ** Return:
-*		This function returns WRONG_KEY if the isn't in the hash table
-*		and SUCCESSFUL_OPERATION if it was possible to find the key.
-*		TODO
+*		This function returns NONEXISTENT_KEY if the value isn't in 
+*		the hash table and SUCCESSFUL_OPERATION if it was possible 
+*		to find the key.
 *
 ** Side-effects:
 *		There's no side-effect 
-*		TODO: error handling for the returns
 *******************************************************************/
 int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
 	key_pair_t* key_pair;
@@ -443,7 +441,8 @@ int delete_from_hash_table(key_pair_t** hash_table, char* key) {
 	if(key_pair) {
 		free(key_pair->key);
 		free(key_pair->value);
-		// TODO: STILL NEEDS TO DELETE LIST OF SEMAPHORES
+		//check if the function works fine
+		delete_sem_list(key_pair);
 		if(key_before == NULL)
 			hash_table[hash_position] = key_pair->next;
 		else
