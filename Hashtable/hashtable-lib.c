@@ -492,7 +492,7 @@ int get_number_of_entries(key_pair_t** hash_table) {
 	key_pair_t* key_pair = NULL;
 	int entries = 0;
 
-	if(hash_table){
+	if(hash_table == NULL){
 		return NONEXISTENT_HASH_TABLE;
 	}
 

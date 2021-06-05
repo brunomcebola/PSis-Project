@@ -769,7 +769,7 @@ int group_info(char* group_id, char** secret, int* num_pairs) {
 		}
 
 		*secret = calloc(MAX_SECRET + 1, sizeof(char));
-		if(*secret = NULL) {
+		if(*secret == NULL) {
 			return NO_MEMORY_AVAILABLE;
 		}
 
@@ -779,7 +779,6 @@ int group_info(char* group_id, char** secret, int* num_pairs) {
 						 MSG_WAITALL,
 						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
 						 &len);
-
 		if(bytes == -1) {
 			return RECEIVED_BROKEN_MESSAGE;
 		}
@@ -1011,10 +1010,10 @@ int delete_group(char* group_id) {
 						 MSG_WAITALL,
 						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
 						 &len);
-
 		if(bytes != sizeof(int)) {
 			return RECEIVED_BROKEN_MESSAGE;
 		}
+
 		if(response == WRONG_KEY) {
 			return NONEXISTENT_GROUP;
 		}
@@ -1026,9 +1025,7 @@ int delete_group(char* group_id) {
 			before_group->next = group->next;
 		}
 
-		if(pthread_rwlock_unlock(&group_list_rwlock) == 0) {
-			return UNSUCCESSFUL_OPERATION;
-		}
+		pthread_rwlock_unlock(&group_list_rwlock);
 
 		pthread_rwlock_destroy(&(group->rwlock));
 		destroy_hash_table(group->hash_table);

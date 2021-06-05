@@ -668,6 +668,12 @@ int delete_value(char* key) {
 *	
 *********************************************************************/
 int close_connection() {
+	// verifies if both are closed
+	if(app_socket == -1 && cb_socket == -1) {
+		print_error("No active connection");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
 	// close main socket
 	if(app_socket != -1) {
 		if(close(app_socket) == -1) {

@@ -79,15 +79,15 @@ void create_group(struct sockaddr_in* addr, char* group_id) {
 
 	//verifies if the group
 	code = get_from_hash_table(groups, group_id, &secret);
-	if(code == NO_MEMORY_AVAILABLE){
-		secret = calloc(MAX_SECRET + 1 , sizeof(char));
+	if(code == NO_MEMORY_AVAILABLE) {
+		secret = calloc(MAX_SECRET + 1, sizeof(char));
 		secret[0] = '\0';
 	}
 
 	if(code == NONEXISTENT_KEY) {
 		secret = generate_secret();
 		code = put_on_hash_table(groups, group_id, secret);
-		if(code == NO_MEMORY_AVAILABLE){
+		if(code == NO_MEMORY_AVAILABLE) {
 			secret[0] = '\0';
 		}
 	}
@@ -193,7 +193,6 @@ void get_group_secret(struct sockaddr_in* addr, char* group_id) {
 *******************************************************************/
 void* console_handler(void* arg) {
 	int bytes = -1;
-	char operation_type = '\0';
 	int len = 0;
 	operation_packet operation;
 	struct sockaddr_in local_server_addr;
@@ -271,11 +270,11 @@ void apps_handler() {
 
 		pthread_rwlock_unlock(&groups_rwlock);
 
-		if(value) {
-			code = strcmp(group_auth_info.secret, value) == 0 ? 1 : -1;
+		if(value != NULL) {
+			code = strcmp(group_auth_info.secret, value) == 0 ? SUCCESSFUL_OPERATION : WRONG_SECRET;
 			free(value);
 		} else {
-			code = -2;
+			code = NONEXISTENT_GROUP;
 		}
 
 		sendto(apps_auth_server_socket, &code, sizeof(int), MSG_CONFIRM, (struct sockaddr*)&local_server_addr, len);
@@ -350,7 +349,7 @@ int setup_server() {
 	console_auth_server_addr.sin_addr.s_addr = inet_addr(AUTH_SERVER_ADDRESS);
 	console_auth_server_addr.sin_port = htons(CONSOLE_AUTH_SERVER_PORT);
 
-	if(pthread_rwlock_init(&groups_rwlock, NULL)  != 0){
+	if(pthread_rwlock_init(&groups_rwlock, NULL) != 0) {
 		return UNSUCCESSFUL_OPERATION;
 	}
 
