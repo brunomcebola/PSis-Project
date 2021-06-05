@@ -17,12 +17,7 @@ void my_function(char* key) {
 }
 
 int main() {
-	int app_socket = -1;
-	int err = close(app_socket);
-
-	return 0;
-
-	char *secret = "Q5E6A3A3I9B9W1I6M9R7E5W2P3I3E6H9", *group_id = "hello";
+	char *secret = "M4Z6X6I6C3N0F9X2X9I4V6C3U1M5F7S0", *group_id = "hello";
 	char* nome1 = NULL;
 
 	// TODO check return codes of KVS_Lib
@@ -70,8 +65,6 @@ int main() {
 	//
 
 	put_value("nome1", "André Silva");
-
-	getchar();
 
 	get_value("nome1", &nome1);
 

@@ -278,7 +278,7 @@ int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 			aux = aux->next;
 		}
 
-		return UPDATE;
+		return UPDATED;
 	}
 }
 

@@ -128,7 +128,7 @@ void* callback_socket_handler(void* args) {
 	printf("\n");
 }
 
-//
+// TODO falta para cima
 
 /*********************************************************************
 *
@@ -144,9 +144,9 @@ void* callback_socket_handler(void* args) {
 *
 ** Parameters:
 *  	@param group_id - string that identifies the group id (which must
-*											have a maximum size of MAX_GROUP_ID)
+*											have a maximum size of MAX_GROUP_ID);
 *  	@param secret 	- string that specifies the secret of the group
-*											(which must have a maximum size of MAX_KEY)
+*											(which must have a maximum size of MAX_SECRET).
 *
 ** Return:
 *		On success: SUCCESSFUL_OPERATION is returned. 
@@ -165,7 +165,7 @@ void* callback_socket_handler(void* args) {
 *		-	NONEXISTENT_GROUP is returned if the the provided group_id does
 *			not match with any id of the groups on the local server;
 *		-	WRONG_SECRET is returned if the provided secret does not match
-*     with the one associated to the group with the provided group_id;
+*     with the one associated to the group with the provided group_id.
 *
 ** Side-effects:
 *		This function has no side-effect.
@@ -185,7 +185,7 @@ int establish_connection(char* group_id, char* secret) {
 
 	// verifies if the group id has more than MAX_GROUP_ID chars
 	if(strlen(group_id) > MAX_GROUP_ID) {
-		print_error("Group id can have a max of " STR(MAX_GROUP_ID) " chars");
+		print_error("The group id can have a max of " STR(MAX_GROUP_ID) " chars");
 		return WRONG_PARAM;
 	}
 	// verifies if a group id is specified
@@ -205,12 +205,14 @@ int establish_connection(char* group_id, char* secret) {
 	}
 	// connection establishing functionality
 	else {
+		// creating main socket
 		app_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 		if(app_socket == -1) {
 			print_error("Unable to create socket");
 			return UNABLE_TO_CONNECT;
 		}
 
+		// creating callback socket
 		cb_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 		if(cb_socket == -1) {
 			print_error("Unable to create callback socket");
@@ -224,6 +226,7 @@ int establish_connection(char* group_id, char* secret) {
 		cb_local_server_addr.sun_family = AF_UNIX;
 		sprintf(cb_local_server_addr.sun_path, CB_LOCAL_SERVER_ADDRESS);
 
+		// connecting main socket to local server
 		err = connect(app_socket, (struct sockaddr*)&local_server_addr, sizeof(struct sockaddr_un));
 		if(err == -1) {
 			print_error("Unable to connect to local server");
@@ -231,6 +234,7 @@ int establish_connection(char* group_id, char* secret) {
 			return UNABLE_TO_CONNECT;
 		}
 
+		// connecting callback socket to local server
 		err = connect(cb_socket, (struct sockaddr*)&cb_local_server_addr, sizeof(struct sockaddr_un));
 		if(err == -1) {
 			print_error("Unable to connect to local server callback");
@@ -242,6 +246,7 @@ int establish_connection(char* group_id, char* secret) {
 		strcpy(connection_info.credentials.group_id, group_id);
 		strcpy(connection_info.credentials.secret, secret);
 
+		// sending connection_packet to the stream
 		bytes = write(app_socket, &connection_info, sizeof(connection_packet));
 		if(bytes != sizeof(connection_packet)) {
 			print_error("Broken message sent to local server");
@@ -249,7 +254,7 @@ int establish_connection(char* group_id, char* secret) {
 			return SENT_BROKEN_MESSAGE;
 		}
 
-		// saber se consegui conectar
+		// reading response from the stream
 		bytes = read(app_socket, &response, sizeof(int));
 		if(bytes == 0) {
 			print_error("Local server closed the connection");
@@ -261,17 +266,22 @@ int establish_connection(char* group_id, char* secret) {
 			return RECEIVED_BROKEN_MESSAGE;
 		}
 
+		// handling wrong secret
 		if(response == WRONG_SECRET) {
 			print_error("The specified secret doesn't match with the one associated to the group");
 			close_connection();
 
 			return WRONG_SECRET;
-		} else if(response == NONEXISTENT_GROUP) {
+		}
+		// handling nonexistent group
+		else if(response == NONEXISTENT_GROUP) {
 			print_error("The specified group doesn't exist");
 			close_connection();
 
 			return NONEXISTENT_GROUP;
-		} else {
+		}
+		// creates callback thread if everything okay
+		else {
 			pthread_create(&cb_socket_thread, NULL, callback_socket_handler, NULL);
 
 			return SUCCESSFUL_OPERATION;
@@ -279,142 +289,268 @@ int establish_connection(char* group_id, char* secret) {
 	}
 }
 
-/*******************************************************************
+/*********************************************************************
 *
 ** int put_value(char* key, char* value)
 *
 ** Description:
-*		Sends the group_id and the secret to the local server so it
-*		can be stored.
+*		If there is an established connection to a local server then the
+*		provided key/value pair is added/updated in the group associated
+*		to the connection.
 *
 ** Parameters:
-*  		@param key - string that identifies the key
-*  		@param value -  string that specifies the value of a key
+*  	@param key   - string that identifies the key/value pair inside
+*									 the connection's group (it must have a maximum 
+*									 size of MAX_Key);
+*  	@param value - string containing the data to be stored int the
+*									 key/value pair of the connection's group (it does
+*									 not have a maximum size, but a value must be 
+*									 specified).
 *
 ** Return:
-*		It returns SENT_BROKEN_MESSAGE or RECEIVED_BROKEN_MESSAGE if the
-*		size of the messages isn't equal to what was sent or received.
-*		It returns SUCCESSFULL_OPERATION if it was possible to send
-*		all the necessary data to the local server.
+*		On success: SUCCESSFUL_OPERATION is returned. 
+*
+*		On error: 
+*		- WRONG_PARAM is returned if either the secret or the  group_id 
+*			does not have the correct size; 
+*		- UNABLE_TO_CONNECT is return if either the connection to main 
+*			socket or to the callback socket is not successful; 
+*		- CLOSED_CONNECTION is returned if the local server closes the
+* 		connection;
+*		- SENT_BROKEN_MESSAGE is return if there is a problem sending the 
+*			connection_packet to the local server; 
+*		- RECEIVED_BROKEN_MESSAGE is return if there is a problem reading
+*			the response from the local server.
 *
 ** Side-effects:
-*		This function has no side-effect
+*		If the local server closes the connection then the function forces
+*		the connection to close also on the app side.
 *	
-*******************************************************************/
+*********************************************************************/
 int put_value(char* key, char* value) {
 	char type = PUT;
+	char s_key[MAX_KEY + 1] = "\0";
 	int bytes = 0;
-	int len = 0;
+	int len_bytes = 0;
 	int response = 0;
 
+	// verifies if there is a connection
 	if(app_socket == -1) {
+		print_error("Unable to connect to the local server");
 		return UNABLE_TO_CONNECT;
 	}
 
-	// letting the local_sever know that we are putting a value
-	bytes = write(app_socket, &type, sizeof(char));
-	if(bytes == 0) {
-		return CLOSED_CONNECTION;
-	} else if(bytes != sizeof(char)) {
-		return SENT_BROKEN_MESSAGE;
+	// verifies if the key has more than MAX_KEY chars
+	if(strlen(key) > MAX_KEY) {
+		print_error("The key can have a max of " STR(MAX_KEY) " chars");
+		return WRONG_PARAM;
+	}
+	// verifies if a key is specified
+	else if(strlen(key) == 0) {
+		print_error("No key was specified");
+		return WRONG_PARAM;
+	}
+	// verifies if a value is specified
+	else if(strlen(value) == 0) {
+		print_error("No value was specified");
+		return WRONG_PARAM;
+	}
+	// put value functionality
+	else {
+		// informing the local server of the operation type
+		bytes = write(app_socket, &type, sizeof(char));
+		if(bytes != sizeof(char)) {
+			print_error("Broken message sent to local server");
+			return SENT_BROKEN_MESSAGE;
+		}
+
+		// sending the key to the stream
+		strncpy(s_key, key, MAX_KEY);
+		len_bytes = (MAX_KEY + 1) * sizeof(char);
+		bytes = write(app_socket, s_key, len_bytes);
+		if(bytes != len_bytes) {
+			print_error("Broken message sent to local server");
+			return SENT_BROKEN_MESSAGE;
+		}
+
+		// sending the value to the stream
+		len_bytes = (strlen(value) + 1) * sizeof(char);
+		bytes = write(app_socket, &len_bytes, sizeof(int));
+		if(bytes != sizeof(int)) {
+			print_error("Broken message sent to local server");
+			return SENT_BROKEN_MESSAGE;
+		}
+		bytes = write(app_socket, value, len_bytes);
+		if(bytes != len_bytes) {
+			print_error("Broken message sent to local server");
+			return SENT_BROKEN_MESSAGE;
+		}
+
+		// reading response from the stream
+		bytes = read(app_socket, &response, sizeof(int));
+		if(bytes == 0) {
+			print_error("Local server closed the connection");
+			close_connection();
+			return CLOSED_CONNECTION;
+		} else if(bytes != sizeof(int)) {
+			print_error("Broken message received from local server");
+			return RECEIVED_BROKEN_MESSAGE;
+		}
+
+		if(response == CREATED) {
+			print_success("Success", "Key/pair value created");
+		} else if(response == UPDATED) {
+			print_success("Success", "Key/pair value updated");
+		}
+
+		return SUCCESSFUL_OPERATION;
+	}
+}
+
+/*********************************************************************
+*
+** int get_value(char* key, char** value)
+*
+** Description:
+*		If there is an established connection to a local server then it
+*		tries to get the value associated with the given key from the 
+*		group associated to the connection.
+*
+** Parameters:
+*  	@param key   - string that identifies the key/value pair inside
+*									 the connection's group (it must have a maximum 
+*									 size of MAX_Key);
+*  	@param value - string where the data of the key/value pair will
+*									 be stored.
+*
+** Return:
+*		On success: SUCCESSFUL_OPERATION is returned. 
+*
+*		On error: 
+*		- WRONG_PARAM is returned if either the secret or the  group_id 
+*			does not have the correct size; 
+*		- UNABLE_TO_CONNECT is return if either the connection to main 
+*			socket or to the callback socket is not successful; 
+*		- CLOSED_CONNECTION is returned if the local server closes the
+* 		connection;
+*		- SENT_BROKEN_MESSAGE is return if there is a problem sending the 
+*			connection_packet to the local server; 
+*		- RECEIVED_BROKEN_MESSAGE is return if there is a problem reading
+*			the response from the local server.
+*
+** Side-effects:
+*		If the local server closes the connection then the function forces
+*		the connection to close also on the app side.
+*	
+*********************************************************************/
+int get_value(char* key, char** value) {
+	char type = GET;
+	int bytes = 0, len_bytes = 0;
+	char s_key[MAX_KEY + 1] = "\0";
+
+	// verifies if there is a connection
+	if(app_socket == -1) {
+		print_error("Unable to connect to the local server");
+		return UNABLE_TO_CONNECT;
 	}
 
-	// writing into the stream the key
-	len = strlen(key) + 1;
-	bytes = write(app_socket, &len, sizeof(int));
-	if(bytes == 0) {
-		return CLOSED_CONNECTION;
-	} else if(bytes != sizeof(int)) {
-		return SENT_BROKEN_MESSAGE;
+	// verifies if the key has more than MAX_KEY chars
+	if(strlen(key) > MAX_KEY) {
+		print_error("The key can have a max of " STR(MAX_KEY) " chars");
+		return WRONG_PARAM;
+	}
+	// verifies if a key is specified
+	else if(strlen(key) == 0) {
+		print_error("No key was specified");
+		return WRONG_PARAM;
+	}
+	// get value functionality
+	else {
+		// informing the local server of the operation type
+		bytes = write(app_socket, &type, sizeof(char));
+		if(bytes = !sizeof(char)) {
+			print_error("Broken message sent to local server");
+			return SENT_BROKEN_MESSAGE;
+		}
+
+		// sending the key to the stream
+		strncpy(s_key, key, MAX_KEY);
+		len_bytes = (MAX_KEY + 1) * sizeof(char);
+		bytes = write(app_socket, s_key, len_bytes);
+		if(bytes != len_bytes) {
+			print_error("Broken message sent to local server");
+			return SENT_BROKEN_MESSAGE;
+		}
+
+		// reading the value from the stream
+		bytes = read(app_socket, &len_bytes, sizeof(int));
+		if(bytes == 0) {
+			print_error("Local server closed the connection");
+			close_connection();
+			return CLOSED_CONNECTION;
+		} else if(bytes != sizeof(int)) {
+			print_error("Broken message received from local server");
+			return RECEIVED_BROKEN_MESSAGE;
+		}
+
+		*value = calloc(len_bytes / sizeof(char), sizeof(char));
+		bytes = read(app_socket, *value, len_bytes);
+		if(bytes == 0) {
+			print_error("Local server closed the connection");
+			close_connection();
+			return CLOSED_CONNECTION;
+		} else if(bytes != len_bytes) {
+			print_error("Broken message received from local server");
+			return RECEIVED_BROKEN_MESSAGE;
+		}
+
+		return SUCCESSFUL_OPERATION;
+	}
+}
+
+/*********************************************************************
+*
+** int close_connection()
+*
+** Description:
+*		Closes all the communication channels between the app and the
+*		local server.
+*
+** Parameters:
+*  	This function takes no parameters.
+*
+** Return:
+*		On success: SUCCESSFUL_OPERATION is returned. 
+*
+*		On error: UNSUCCESSFUL_OPERATION is returned.
+*
+** Side-effects:
+*		This function has no side-effect.
+*	
+*********************************************************************/
+int close_connection() {
+	// close main socket
+	if(app_socket != -1) {
+		if(close(app_socket) == -1) {
+			print_error("Unable to close main socket");
+			return UNSUCCESSFUL_OPERATION;
+		}
+		app_socket = -1;
 	}
 
-	bytes = write(app_socket, key, len * sizeof(char));
-	if(bytes == 0) {
-		return CLOSED_CONNECTION;
-	} else if(bytes != len * sizeof(char)) {
-		return SENT_BROKEN_MESSAGE;
-	}
-
-	// writing into the stream the value
-	len = strlen(value) + 1;
-	bytes = write(app_socket, &len, sizeof(int));
-	if(bytes == 0) {
-		return CLOSED_CONNECTION;
-	} else if(bytes != sizeof(int)) {
-		return SENT_BROKEN_MESSAGE;
-	}
-
-	bytes = write(app_socket, value, len * sizeof(char));
-	if(bytes == 0) {
-		return CLOSED_CONNECTION;
-	} else if(bytes != len * sizeof(char)) {
-		return SENT_BROKEN_MESSAGE;
-	}
-
-	bytes = read(app_socket, &response, sizeof(int));
-	if(bytes == 0) {
-		return CLOSED_CONNECTION;
-	} else if(bytes != sizeof(int)) {
-		return RECEIVED_BROKEN_MESSAGE;
+	// close callback socket
+	if(cb_socket != -1) {
+		if(close(cb_socket) == -1) {
+			print_error("Unable to close calllback socket");
+			return UNSUCCESSFUL_OPERATION;
+		}
+		cb_socket = -1;
 	}
 
 	return SUCCESSFUL_OPERATION;
 }
 
-/*******************************************************************
-*
-** int get_value(char* secret, char** value)
-*
-** Description:
-*		Sends the group_id and expects the local server to store the
-*		memory and copy the value in the char** value.
-*
-** Parameters:
-*  		@param key - string that identifies the key
-*  		@param value - pointer of a string that specifies value of a key
-*
-** Return:
-*		It returns SENT_BROKEN_MESSAGE or RECEIVED_BROKEN_MESSAGE if the
-*		size of the messages isn't equal to what was sent or received
-*
-** Side-effects:
-*		This function has no side-effect
-*	
-*******************************************************************/
-int get_value(char* key, char** value) {
-	int bytes = 0, len = 0;
-	char type = GET;
-
-	// letting the local_sever know that we are getting a value
-	bytes = write(app_socket, &type, sizeof(type));
-	if(bytes = !sizeof(type)) {
-		return SENT_BROKEN_MESSAGE;
-	}
-
-	// writing into the stream the key
-	len = (strlen(key) + 1) * sizeof(char);
-	bytes = write(app_socket, &len, sizeof(int));
-	if(bytes != sizeof(int)) {
-		return SENT_BROKEN_MESSAGE;
-	}
-	bytes = write(app_socket, key, len);
-	if(bytes != len) {
-		return SENT_BROKEN_MESSAGE;
-	}
-
-	// writing into the stream the value
-	bytes = read(app_socket, &len, sizeof(int));
-	if(bytes != sizeof(int)) {
-		return RECEIVED_BROKEN_MESSAGE;
-	}
-	*value = calloc(len, sizeof(char));
-	bytes = read(app_socket, *value, len);
-	if(bytes != len) {
-		return RECEIVED_BROKEN_MESSAGE;
-	}
-
-	return SUCCESSFUL_CONNECTION;
-}
+// TODO falta para baixo
 
 int delete_value(char* key) {
 	char type = DEL;
@@ -551,44 +687,4 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 			return SUCCESSFUL_OPERATION;
 		}
 	}
-}
-
-/*******************************************************************
-*
-** int close_connection()
-*
-** Description:
-*		Closes all the communication channels between the app and the
-*		local server.
-*
-** Parameters:
-*  	This function takes no parameters.
-*
-** Return:
-*		On success: SUCCESSFUL_OPERATION is returned. 
-*
-*		On error: UNSUCCESSFUL_OPERATION.
-*
-** Side-effects:
-*		This function has no side-effect.
-*	
-*******************************************************************/
-int close_connection() {
-	if(app_socket != -1) {
-		if(close(app_socket) == -1) {
-			print_error("Unable to close main socket");
-			return UNSUCCESSFUL_OPERATION;
-		}
-		app_socket = -1;
-	}
-
-	if(cb_socket != -1) {
-		if(close(cb_socket) == -1) {
-			print_error("Unable to close calllback socket");
-			return UNSUCCESSFUL_OPERATION;
-		}
-		cb_socket = -1;
-	}
-
-	return SUCCESSFUL_OPERATION;
 }

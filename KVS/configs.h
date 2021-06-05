@@ -73,7 +73,7 @@ typedef struct {
 #define SUCCESSFUL_OPERATION 1
 #define SUCCESSFUL_CONNECTION 2
 #define CREATED 3
-#define UPDATE 4
+#define UPDATED 4
 
 // helper functions
 

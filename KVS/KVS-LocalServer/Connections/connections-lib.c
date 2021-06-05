@@ -198,16 +198,6 @@ void close_connection(connection_t* connection, group_t* group, int list_critica
 	time_t t;
 	struct tm tm;
 
-	// groups list critical region
-	if(list_critical_region) {
-		pthread_rwlock_unlock(&group_list_rwlock);
-	}
-
-	// group critical region
-	if(group_critical_region) {
-		pthread_rwlock_unlock(&(group->rwlock));
-	}
-
 	t = time(NULL);
 	localtime_r(&t, &tm);
 	sprintf(connection->close_time,
@@ -221,75 +211,90 @@ void close_connection(connection_t* connection, group_t* group, int list_critica
 	close(connection->socket);
 	connection->socket = -1;
 	connection->group = NULL;
+
+	// groups list critical region
+	if(list_critical_region) {
+		pthread_rwlock_unlock(&group_list_rwlock);
+	}
+
+	// group critical region
+	if(group_critical_region) {
+		pthread_rwlock_unlock(&(group->rwlock));
+	}
+
 	pthread_exit(0);
 }
 
-/***************************************************** **************
+// TODO falta para cima
+
+/*********************************************************************
 *
-** void put_value(connection_t* connection, group_t* group) 
+** void put_value(connection_t* connection) 
 *
 ** Description:
-*		Inserts a new key/value pair in the provided group's hashtable
-*		if it doesn't exist yet. If it does exist then the value gets
-*		updated.
+*		Creates a new key/value pair on the provided group's hashtable if
+*		one doesn't exist yet. If it does exist then the value gets 
+*		updated. A code is sent to client informing the status (CREATED or
+*		UPDATED).
 *
 ** Parameters:
-*  	@param connection - struct holding connections settings
-*  	@param group - struct holding group infos
+*  	@param connection - struct holding connections settings.
 *
 ** Return:
 *		Nothing is returned by the function.
-*		A success/error code is sent to the client via socket write
 *
 ** Side-effects:
-*		If a write or a read from the socket is not successful then the 
-*		connection is terminated (both thread and socket get closed)
+*		If the client closes the connection then the function forces the
+*		connection to close also on the local server side.
 *	
-*
-*******************************************************************/
+*********************************************************************/
 void put_value(connection_t* connection) {
 	int bytes = -1, code = 0;
-	int key_len = 0, value_len = 0;
-	char *key = NULL, *value = NULL;
+	int len_bytes = 0;
+	char key[MAX_KEY + 1], *value = NULL;
 
-	bytes = read(connection->socket, &key_len, sizeof(int));
-	if(bytes != sizeof(int)) {
+	// reading the key from the stream
+	len_bytes = (MAX_KEY + 1) * sizeof(char);
+	bytes = read(connection->socket, key, len_bytes);
+	if(bytes == 0) {
 		close_connection(connection, connection->group, 0, 1);
+	} else if(bytes != len_bytes) {
+		return;
 	}
 
-	key = calloc(key_len, sizeof(char));
-	if(key == NULL) {
+	// reading the value from the stream
+	bytes = read(connection->socket, &len_bytes, sizeof(int));
+	if(bytes == 0) {
 		close_connection(connection, connection->group, 0, 1);
+	} else if(bytes != sizeof(int)) {
+		return;
 	}
 
-	bytes = read(connection->socket, key, key_len);
-	if(bytes != key_len) {
-		close_connection(connection, connection->group, 0, 1);
-	}
-
-	bytes = read(connection->socket, &value_len, sizeof(int));
-	if(bytes != sizeof(int)) {
-		close_connection(connection, connection->group, 0, 1);
-	}
-
-	value = calloc(value_len, sizeof(char));
+	value = calloc(len_bytes, sizeof(char));
 	if(value == NULL) {
 		close_connection(connection, connection->group, 0, 1);
 	}
 
-	bytes = read(connection->socket, value, value_len);
-	if(bytes != value_len) {
+	bytes = read(connection->socket, value, len_bytes);
+	if(bytes == 0) {
 		close_connection(connection, connection->group, 0, 1);
+	} else if(bytes != len_bytes) {
+		return;
 	}
 
+	// create/update hash table
 	code = put_on_hash_table(connection->group->hash_table, key, value);
 
-	bytes = write(connection->socket, &code, sizeof(int));
-	if(bytes != sizeof(int)) {
+	if(code == NO_MEMORY_AVAILABLE) {
 		close_connection(connection, connection->group, 0, 1);
 	}
 
-	free(key);
+	// sending the status code to the stream
+	bytes = write(connection->socket, &code, sizeof(int));
+	if(bytes != sizeof(int)) {
+		return;
+	}
+
 	free(value);
 }
 
@@ -316,47 +321,47 @@ void put_value(connection_t* connection) {
 *	
 *******************************************************************/
 void get_value(connection_t* connection) {
-	int bytes = 0, len = 0;
+	int bytes = 0, len_bytes = 0;
 	int code = 0;
-	char *key = NULL, *value = NULL;
+	char key[MAX_KEY + 1], *value = NULL;
 
-	bytes = read(connection->socket, &len, sizeof(int));
-	if(bytes != sizeof(int)) {
+	// reading the key from the stream
+	len_bytes = (MAX_KEY + 1) * sizeof(char);
+	bytes = read(connection->socket, key, len_bytes);
+	if(bytes == 0) {
 		close_connection(connection, connection->group, 0, 1);
+	} else if(bytes != len_bytes) {
+		return;
 	}
 
-	key = calloc(len, sizeof(char));
-	if(key == NULL) {
-		close_connection(connection, connection->group, 0, 1);
-	}
-
-	bytes = read(connection->socket, key, len);
-	if(bytes != len) {
-		close_connection(connection, connection->group, 0, 1);
-	}
-
+	// get value from hashtable
 	code = get_from_hash_table(connection->group->hash_table, key, &value);
-	if(code == NONEXISTENT_KEY) {
-		// aqui temos que arranjar uma boa maneira para identificar que é erro
-		// bom truque '\n'
-		// TODO ver isto melhor
+
+	if(code == NO_MEMORY_AVAILABLE) {
 		close_connection(connection, connection->group, 0, 1);
+	} else if(code == NONEXISTENT_KEY) {
+		len_bytes = sizeof(char);
+		value = calloc(1, sizeof(char));
+		value[0] = '\0';
+	} else {
+		len_bytes = (strlen(value) + 1) * sizeof(char);
 	}
 
-	len = strlen(value) + 1;
-	bytes = write(connection->socket, &len, sizeof(int));
+	// sending the value to the stream
+	bytes = write(connection->socket, &len_bytes, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection(connection, connection->group, 0, 1);
+		return;
 	}
 
-	bytes = write(connection->socket, value, len * sizeof(char));
-	if(bytes != len * sizeof(char)) {
-		close_connection(connection, connection->group, 0, 1);
+	bytes = write(connection->socket, value, len_bytes);
+	if(bytes != len_bytes) {
+		return;
 	}
 
-	free(key);
 	free(value);
 }
+
+// TODO falta para baixo
 
 /*******************************************************************
 *
@@ -449,14 +454,16 @@ void* connection_handler(void* connection) {
 
 	// receive info from app
 	pthread_mutex_lock(&authentication_mutex);
+
 	bytes = read(((connection_t*)connection)->socket, &connection_info, sizeof(connection_packet));
 	if(bytes != sizeof(connection_packet)) {
+		pthread_mutex_unlock(&authentication_mutex);
 		close_connection((connection_t*)connection, NULL, 0, 0);
 	}
 
 	((connection_t*)connection)->pid = connection_info.pid;
 
-	// send informaton to auth server
+	// send information to auth server
 	bytes = sendto(apps_local_server_inet_socket,
 				   &(connection_info.credentials),
 				   sizeof(access_packet),
@@ -464,6 +471,7 @@ void* connection_handler(void* connection) {
 				   (const struct sockaddr*)&apps_auth_server_inet_socket_addr,
 				   len);
 	if(bytes != sizeof(access_packet)) {
+		pthread_mutex_unlock(&authentication_mutex);
 		close_connection((connection_t*)connection, NULL, 0, 0);
 	}
 
@@ -471,11 +479,13 @@ void* connection_handler(void* connection) {
 	bytes = recvfrom(
 		apps_local_server_inet_socket, &code, sizeof(int), MSG_WAITALL, (struct sockaddr*)&apps_auth_server_inet_socket_addr, &len);
 	if(bytes != sizeof(int)) {
+		pthread_mutex_unlock(&authentication_mutex);
 		close_connection((connection_t*)connection, NULL, 0, 0);
 	}
 
 	bytes = write(((connection_t*)connection)->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
+		pthread_mutex_unlock(&authentication_mutex);
 		close_connection((connection_t*)connection, NULL, 0, 0);
 	}
 

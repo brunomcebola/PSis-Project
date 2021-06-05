@@ -90,7 +90,7 @@ void print_warning(char* warning) {
 *		There's no side-effect 
 *******************************************************************/
 void print_success(char* description, char* data) {
-	printf(ANSI_BOLD ANSI_GREEN "%s: " ANSI_RESET ANSI_BOLD "%s\n" ANSI_RESET, description, data);
+	printf(ANSI_BOLD ANSI_GREEN "\n%s: " ANSI_RESET ANSI_BOLD "%s\n" ANSI_RESET, description, data);
 
 	return;
 }
