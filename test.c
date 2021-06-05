@@ -17,12 +17,10 @@ void my_function(char* key) {
 }
 
 int main() {
-	char *secret = "S3N4V1H5M5M5J8Z9X9W8U1D2Q1T4T1T3", *group_id = "hello";
+	char *secret = "X4C7M4B8T1I7W8L2G2E9I0H5M7C7M8O9", *group_id = "hello";
 	char *nome1 = NULL, *nome2 = NULL, *nome3 = NULL, *nome4 = NULL;
 
-	printf("%s\n", int2str(2));
-
-	int p = establish_connection(group_id, secret);
+	establish_connection(group_id, secret);
 
 	put_value("nome1", "Bruno Cebola");
 
@@ -30,7 +28,7 @@ int main() {
 
 	printf("Nome1: %s\n", nome1);
 
-	register_callback("nome1", my_function);
+	//register_callback("nome1", my_function);
 
 	//
 

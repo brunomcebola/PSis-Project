@@ -49,6 +49,29 @@ void print_error(char* error) {
 
 /*******************************************************************
 *
+** void print_warning(char* warning)
+*
+** Description:
+*		Prints out the warning in yellow
+*
+** Parameters:
+*  		@param warning - string that specifies the warning
+*
+** Return:
+*		This function doesn't return any information
+*
+** Side-effects:
+*		There's no side-effect 
+*
+*******************************************************************/
+void print_warning(char* warning) {
+	printf(ANSI_YELLOW "Warning: " ANSI_RESET "%s!", warning);
+
+	return;
+}
+
+/*******************************************************************
+*
 **void print_sucess() 
 *
 ** Description:
@@ -91,7 +114,7 @@ void print_success(char* description, char* data) {
 * TODO: bruno confere esta parte 
 *******************************************************************/
 char* int2str(int val) {
-	char *str = calloc(15, sizeof(char));
+	char* str = calloc(15, sizeof(char));
 
 	sprintf(str, "%d", val);
 

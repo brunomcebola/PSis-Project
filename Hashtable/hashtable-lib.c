@@ -333,7 +333,6 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 *		TODO: error handling for the returns
 *******************************************************************/
 int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
-	char* new_value;
 	key_pair_t* key_pair;
 
 	// return 1 if it exists
@@ -342,9 +341,7 @@ int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
 	int hash_position = hash(key);
 	key_pair = hash_table[hash_position];
 	if(key_pair == NULL) {
-		// putting the value on the hash tabble
-		printf("Key %s doesn't exist", key);
-		return WRONG_KEY;
+		return NONEXISTENT_KEY;
 	}
 
 	// searching for the key
@@ -356,13 +353,12 @@ int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
 	}
 
 	if(key_pair) {
-		new_value = calloc(strlen(key_pair->value) + 1, sizeof(char));
-		strcpy(new_value, key_pair->value);
-		*value = new_value;
+		*value = calloc(strlen(key_pair->value) + 1, sizeof(char));
+		strcpy(*value, key_pair->value);
 		return SUCCESSFUL_OPERATION;
 	}
 
-	return WRONG_KEY;
+	return NONEXISTENT_KEY;
 }
 
 /*******************************************************************

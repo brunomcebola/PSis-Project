@@ -4,8 +4,6 @@
 
 // servers configurations
 
-#define APPS_ADDRESS "/tmp/app_socket_"
-#define CB_APPS_ADDRESS "/tmp/cb_app_socket_"
 #define LOCAL_SERVER_ADDRESS "/tmp/kvs_local_server_socket"
 #define CB_LOCAL_SERVER_ADDRESS "/tmp/kvs_cb_local_server_socket"
 #define AUTH_SERVER_ADDRESS "127.0.0.1"
@@ -70,6 +68,7 @@ typedef struct {
 #define WRONG_SECRET -8
 #define NONEXISTENT_GROUP -9
 #define WRONG_KEY -10
+#define NONEXISTENT_KEY -11
 
 #define SUCCESSFUL_CONNECTION 1
 #define SUCCESSFUL_OPERATION 2
@@ -82,5 +81,6 @@ void print_title(char* title);
 void print_error(char* error);
 void print_success(char* description, char* data);
 char* int2str(int val);
+void print_warning(char* warning);
 
 #endif

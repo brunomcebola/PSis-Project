@@ -75,12 +75,16 @@ char* generate_secret() {
 *	TODO: ERROR HANDLING
 *************************************************************************/
 void create_group(struct sockaddr_in* addr, char* group_id) {
-	int bytes = -1;
-	char* secret;
+	int bytes = -1, code = 0;
+	char* secret = NULL;
 
-	secret = generate_secret();
+	code = get_from_hash_table(groups, group_id, &secret);
 
-	put_on_hash_table(groups, group_id, secret);
+	if(code == NONEXISTENT_KEY) {
+		secret = generate_secret();
+
+		put_on_hash_table(groups, group_id, secret);
+	}
 
 	bytes = sendto(console_auth_server_socket, secret, MAX_SECRET + 1, MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
 	if(bytes == -1) {
@@ -197,13 +201,12 @@ void* console_handler(void* arg) {
 			exit(-1);
 		}
 		// TODO
-		if(operation.type == GET){
+		if(operation.type == GET) {
 			pthread_rwlock_rdlock(&groups_rwlock);
-		}
-		else{
+		} else {
 			pthread_rwlock_wrlock(&groups_rwlock);
 		}
-		
+
 		switch(operation.type) {
 			case POST: // create group
 				create_group(&local_server_addr, operation.group_id);
@@ -214,7 +217,7 @@ void* console_handler(void* arg) {
 			case GET: // giving group secret (group info of console)
 				get_group_secret(&local_server_addr, operation.group_id);
 				break;
-		}	
+		}
 		pthread_rwlock_unlock(&groups_rwlock);
 	}
 	pthread_exit(NULL);
@@ -254,11 +257,11 @@ void apps_handler() {
 		if(bytes != sizeof(access_packet)) {
 			continue;
 		}
-		
+
 		pthread_rwlock_rdlock(&groups_rwlock);
 
 		get_from_hash_table(groups, group_auth_info.group_id, &value);
-			
+
 		pthread_rwlock_unlock(&groups_rwlock);
 
 		// handling auth_server thingys
@@ -332,11 +335,11 @@ void setup_server() {
 	pthread_rwlock_init(&groups_rwlock, NULL);
 
 	// bind the sockets
-	if(bind(apps_auth_server_socket, (struct sockaddr*)&apps_auth_server_addr, sizeof(apps_auth_server_addr)) < 0) {
+	if(bind(apps_auth_server_socket, (struct sockaddr*)&apps_auth_server_addr, sizeof(struct sockaddr_in)) < 0) {
 		perror("");
 		exit(-1);
 	}
-	if(bind(console_auth_server_socket, (struct sockaddr*)&console_auth_server_addr, sizeof(console_auth_server_addr)) < 0) {
+	if(bind(console_auth_server_socket, (struct sockaddr*)&console_auth_server_addr, sizeof(struct sockaddr_in)) < 0) {
 		perror("");
 		exit(-1);
 	}

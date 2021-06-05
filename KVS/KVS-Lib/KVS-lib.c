@@ -115,39 +115,11 @@ int establish_connection(char* group_id, char* secret) {
 			return UNABLE_TO_CONNECT;
 		}
 
-		app_addr.sun_family = AF_UNIX;
-		sprintf(app_addr.sun_path, APPS_ADDRESS "%d", getpid());
-		unlink(app_addr.sun_path);
-
-		cb_addr.sun_family = AF_UNIX;
-		sprintf(cb_addr.sun_path, CB_APPS_ADDRESS "%d", getpid());
-		unlink(cb_addr.sun_path);
-
 		local_server_addr.sun_family = AF_UNIX;
 		sprintf(local_server_addr.sun_path, LOCAL_SERVER_ADDRESS);
 
 		cb_local_server_addr.sun_family = AF_UNIX;
 		sprintf(cb_local_server_addr.sun_path, CB_LOCAL_SERVER_ADDRESS);
-
-		err = bind(app_socket, (struct sockaddr*)&app_addr, sizeof(struct sockaddr_un));
-		if(err == -1) {
-			close(app_socket);
-			app_socket = -1;
-			close(cb_socket);
-			cb_socket = -1;
-			print_error("Unable to bind socket");
-			return UNABLE_TO_CONNECT;
-		}
-
-		err = bind(cb_socket, (struct sockaddr*)&cb_addr, sizeof(struct sockaddr_un));
-		if(err == -1) {
-			close(app_socket);
-			app_socket = -1;
-			close(cb_socket);
-			cb_socket = -1;
-			print_error("Unable to bind socket");
-			return UNABLE_TO_CONNECT;
-		}
 
 		err = connect(app_socket, (struct sockaddr*)&local_server_addr, sizeof(struct sockaddr_un));
 		if(err == -1) {
