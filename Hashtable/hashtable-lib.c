@@ -278,7 +278,8 @@ int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 
 /*********************************************************************
 *
-** int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name)
+** int put_sem_on_hash_table(key_pair_t** hash_table, 
+**																					char* key, char* sem_name)
 *
 ** Description:
 *		Stores the semaphore id in a list in a specified position of the
@@ -287,19 +288,20 @@ int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 *
 ** Parameters:
 *  	@param hash_table - pointer of an array that represents the
-*							hashtable used to store information;
-*	@param key - string that it's supposed t be stored and
-*					represents a certain value;
-*	@param sem_name - pointer of void that will represent the 
-*						sem_t from the <semaphore.h> library and
-*						that indicates which semaphore is used
-*						for this key.
+*							          hashtable used to store information;
+*	  @param key 				- string that it's supposed t be stored and
+*												represents a certain value;
+*	  @param sem_name 	- pointer of void that will represent the 
+*												sem_t from the <semaphore.h> library and
+*												that indicates which semaphore is used
+*												for this key.
 *
 ** Return:
 *		On success: SUCCESSFUL_OPERATION is returned. 
 *
 *		On error: 
-*		- NO_MEMORY_AVAILABLE if there's any error in the calloc function.
+*		- NO_MEMORY_AVAILABLE if there's any error in the calloc function;
+*		- UNSUCCESSFUL_OPERATION if it cannot open semaphore
 *
 ** Side-effects:
 *		This function has no side-effect.
@@ -328,6 +330,10 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 		}
 
 		new_sem->sem_id = sem_open(sem_name, O_CREAT, 0600, 0);
+		if(new_sem->sem_id == SEM_FAILED) {
+				free(new_sem);
+				return UNSUCCESSFUL_OPERATION;
+			}
 
 		new_sem->next = key_pair->sem_head;
 

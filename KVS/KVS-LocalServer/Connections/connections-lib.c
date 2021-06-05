@@ -263,10 +263,10 @@ void close_connection(connection_t* connection, int list_critical_region, int gr
 ** void put_value(connection_t* connection) 
 *
 ** Description:
-*		Creates a new key/value pair on the provided group's hashtable if
-*		one doesn't exist yet. If it does exist then the value gets 
-*		updated. A code is sent to client informing the status (CREATED or
-*		UPDATED).
+*		Creates a new key/value pair on the group's hashtable associated
+*		with the connection if one doesn't exist yet. If it does exist then  
+*		the value gets updated. A code is sent to client informing the 
+*		status (CREATED or UPDATED).
 *
 ** Parameters:
 *  	@param connection - struct holding connections settings.
@@ -275,8 +275,9 @@ void close_connection(connection_t* connection, int list_critical_region, int gr
 *		Nothing is returned by this function.
 *
 ** Side-effects:
-*		If the client closes the connection then the function forces the
-*		connection to close also on the local server side.
+*		If a write or a read from the socket is not successful then the 
+*		connection is terminated (both thread and socket get closed).
+*		A success/error code is sent to the client via socket write.
 *	
 *********************************************************************/
 void put_value(connection_t* connection) {
@@ -329,27 +330,26 @@ void put_value(connection_t* connection) {
 	free(value);
 }
 
-/*******************************************************************
+/*********************************************************************
 *
-** void get_value(connection_t* connection, group_t* group) 
+** void get_value(connection_t* connection) 
 *
 ** Description:
-*		Gets the value corresponding to a key in the given group's 
-*		hashtable.
+*		Gets the value corresponding to a key in the group's hashtable 
+*		associated with the connection.
 *
 ** Parameters:
 *  	@param connection - struct holding connections settings.
 *
 ** Return:
 *		Nothing is returned by this function.
-*		The value is sent to the client via socket write
 *
 ** Side-effects:
 *		If a write or a read from the socket is not successful then the 
-*		connection is terminated (both thread and socket get closed)
-*
+*		connection is terminated (both thread and socket get closed).
+*		A success/error code is sent to the client via socket write.
 *	
-*******************************************************************/
+*********************************************************************/
 void get_value(connection_t* connection) {
 	int bytes = 0, len_bytes = 0;
 	int code = 0;
@@ -372,6 +372,9 @@ void get_value(connection_t* connection) {
 	} else if(code == NONEXISTENT_KEY) {
 		len_bytes = sizeof(char);
 		value = calloc(1, sizeof(char));
+		if(value == NULL) {
+			close_connection(connection, 0, 1);
+		}
 		value[0] = '\0';
 	} else {
 		len_bytes = (strlen(value) + 1) * sizeof(char);
@@ -391,25 +394,26 @@ void get_value(connection_t* connection) {
 	free(value);
 }
 
-/*******************************************************************
+/*********************************************************************
 *
 ** void delete_value(connection_t* connection, group_t* group) 
 *
 ** Description:
-*		Deletes a key/value pair from the provided group's hashtable.
+*		Deletes a key/value pair from the the group's hashtable associated
+*		with the connection
 *
 ** Parameters:
 *  	@param connection - struct holding connections settings
 *
 ** Return:
 *		Nothing is returned by this function.
-*		A success/error code is sent to the client via socket write
 *
 ** Side-effects:
 *		If a write or a read from the socket is not successful then the 
-*		connection is terminated (both thread and socket get closed)
+*		connection is terminated (both thread and socket get closed).
+*		A success/error code is sent to the client via socket write
 *
-*******************************************************************/
+*********************************************************************/
 void delete_value(connection_t* connection) {
 	int bytes = -1, len_bytes = 0, code = 0, status = 0;
 	char key[MAX_KEY + 1];
@@ -456,36 +460,68 @@ void delete_value(connection_t* connection) {
 	}
 }
 
-// TODO falta para baixo
-
+/*********************************************************************
+*
+** void register_callback(connection_t* connection)
+*
+** Description:
+*		Associates a sempahore to a key/value pair from the the group's 
+*		hashtable associated with the connection
+*
+** Parameters:
+*  	@param connection - struct holding connections settings
+*
+** Return:
+*		Nothing is returned by this function.
+*
+** Side-effects:
+*		If a write or a read from the socket is not successful then the 
+*		connection is terminated (both thread and socket get closed).
+*		A success/error code is sent to the client via socket write.
+*
+*********************************************************************/
 void register_callback(connection_t* connection) {
-	int bytes = 0;
+	int bytes = 0, len_bytes = 0;
 	int code = 0;
 	char key[MAX_KEY + 1];
 	char name[MAX_NAME + 1];
 	sem_t* sem_id;
 
-	// reading key
-	bytes = read(connection->socket, key, (MAX_KEY + 1) * sizeof(char));
-	if(bytes != (MAX_KEY + 1) * sizeof(char)) {
+	// reading the key from the stream
+	len_bytes = (MAX_KEY + 1) * sizeof(char);
+	bytes = read(connection->socket, key, len_bytes);
+	if(bytes == 0) {
 		close_connection(connection, 0, 1);
+	} else if(bytes != len_bytes) {
+		return;
 	}
 
-	// reading semaphore/pipe name
-	bytes = read(connection->socket, name, (MAX_NAME + 1) * sizeof(char));
-	if(bytes != (MAX_NAME + 1) * sizeof(char)) {
+	// reading name from the stream
+	len_bytes = (MAX_NAME + 1) * sizeof(char);
+	bytes = read(connection->socket, name, len_bytes);
+	if(bytes == 0) {
 		close_connection(connection, 0, 1);
+	} else if(bytes != len_bytes) {
+		return;
 	}
 
+	// put semaphore on hashtable
 	code = put_sem_on_hash_table(connection->group->hash_table, key, name);
 
+	if(code == NO_MEMORY_AVAILABLE) {
+		close_connection(connection, 0, 1);
+	}
+
+	// sending code to the stream
 	bytes = write(connection->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection(connection, 0, 1);
+		return;
 	}
 
 	return;
 }
+
+// TODO falta para baixo
 
 void* connection_handler(void* connection) {
 	int bytes = -1, code = 0;

@@ -170,7 +170,7 @@ void* callback_socket_handler(void* args) {
 *     with the one associated to the group with the provided group_id.
 *
 ** Side-effects:
-*		This function has no side-effect.
+*		On success it creates a thrad to handle callback calls.
 *	
 *********************************************************************/
 int establish_connection(char* group_id, char* secret) {
@@ -289,7 +289,11 @@ int establish_connection(char* group_id, char* secret) {
 		}
 		// creates callback thread if everything okay
 		else {
-			pthread_create(&cb_socket_thread, NULL, callback_socket_handler, NULL);
+			if(pthread_create(&cb_socket_thread, NULL, callback_socket_handler, NULL) != 0) {
+				print_error("Unable to launch callback listening thread");
+				close_connection();
+				return UNSUCCESSFUL_SUBOPERATION;
+			}
 
 			return SUCCESSFUL_OPERATION;
 		}
@@ -444,7 +448,9 @@ int put_value(char* key, char* value) {
 *		- SENT_BROKEN_MESSAGE is return if there is a problem sending the 
 *			connection_packet to the local server; 
 *		- RECEIVED_BROKEN_MESSAGE is return if there is a problem reading
-*			the response from the local server.
+*			the response from the local server;
+*		- NO_MEMORY_AVAILABLE is returned if function cannot allocate 
+*			memory to store the fetched value.
 *
 ** Side-effects:
 *		If the local server closes the connection then the function forces
@@ -475,7 +481,7 @@ int get_value(char* key, char** value) {
 	else {
 		// informing the local server of the operation type
 		bytes = write(app_socket, &type, sizeof(char));
-		if(bytes = !sizeof(char)) {
+		if(bytes != sizeof(char)) {
 			print_error("Broken message sent to local server");
 			return SENT_BROKEN_MESSAGE;
 		}
@@ -501,6 +507,12 @@ int get_value(char* key, char** value) {
 		}
 
 		*value = calloc(len_bytes / sizeof(char), sizeof(char));
+		if(*value == NULL) {
+			print_error("Unable to allocate memory to store the value");
+			close_connection();
+			return NO_MEMORY_AVAILABLE;
+		}
+
 		bytes = read(app_socket, *value, len_bytes);
 		if(bytes == 0) {
 			print_error("Local server closed the connection");
@@ -677,17 +689,64 @@ int close_connection() {
 	return SUCCESSFUL_OPERATION;
 }
 
-// TODO falta para baixo
-
+/*********************************************************************
+*
+** int register_callback(char* key, void (*callback_function)(char*))
+*
+** Description:
+*		If there is an established connection to a local server then it
+*		associates a callback function to a key/value pair in the group 
+*		associated to the connection, if it does not exist already. If it
+*		does then the callback function gets updated.
+*
+** Parameters:
+*  	@param key - string that identifies the key/value pair inside the
+*								 connection's group (it must have a maximum size of
+*								 MAX_Key);
+*  	@param callback_function - callback function address.
+*
+** Return:
+*		On success: SUCCESSFUL_OPERATION is returned. 
+*
+*		On error: 
+*		- WRONG_PARAM is returned if either the secret or the  group_id 
+*			does not have the correct size; 
+*		- UNABLE_TO_CONNECT is return if either the connection to main 
+*			socket or to the callback socket is not successful; 
+*		- CLOSED_CONNECTION is returned if the local server closes the
+* 		connection;
+*		- SENT_BROKEN_MESSAGE is return if there is a problem sending the 
+*			connection_packet to the local server; 
+*		- RECEIVED_BROKEN_MESSAGE is return if there is a problem reading
+*			the response from the local server;
+*		- NO_MEMORY_AVAILABLE is returned if function cannot allocate 
+*			memory to store the new callback on the list;
+*		- UNSUCCESSFUL_OPERATION is returned if cannot create semaphore or
+*			if local server sends an error code;
+*		- UNSUCCESSFUL_SUBOPERATION is returned if cannot launch thread
+*			to run the callback.
+*
+** Side-effects:
+*		If the local server closes the connection then the function forces
+*		the connection to close also on the app side.
+*		If a callback has been set for the given key (which means it is an
+*		update operation) then it gets triggered upon successful edition
+*	
+*********************************************************************/
 int register_callback(char* key, void (*callback_function)(char*)) {
 	char type = RCB;
-	int bytes = 0;
+	int bytes = 0, len_bytes = 0;
 	int response = 0;
 
 	callback_t *callback_info = NULL, *aux = callbacks_list;
 
+	// verifies if there is a connection
+	if(app_socket == -1) {
+		print_error("Unable to connect to the local server");
+		return UNABLE_TO_CONNECT;
+	}
 	// verifies if the group id has more than MAX_GROUP_ID chars
-	if(strlen(key) > MAX_KEY) {
+	else if(strlen(key) > MAX_KEY) {
 		print_error("The key can have a max of " STR(MAX_KEY) " chars");
 		return WRONG_PARAM;
 	}
@@ -712,9 +771,12 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 
 		//creates callback if it doesn't exist yet
 		if(aux == NULL) {
+			// create new callback info to place on callback list
 			callback_info = calloc(1, sizeof(callback_t));
 			if(callback_info == NULL) {
-				return UNSUCCESSFUL_OPERATION;
+				print_error("Unable to allocate memory to store the new callback");
+				close_connection();
+				return NO_MEMORY_AVAILABLE;
 			}
 
 			strncpy(callback_info->key, key, MAX_KEY);
@@ -731,23 +793,43 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 			callback_info->sem_id = sem_open(callback_info->name, O_CREAT, 0600, 0);
 			callback_info->active = 1;
 
-			bytes = write(app_socket, &type, sizeof(type));
-			if(bytes != sizeof(type)) {
+			if(callback_info->sem_id == SEM_FAILED) {
+				print_error("Unable to open semaphore for the new callback");
+				free(callback_info);
+				return UNSUCCESSFUL_OPERATION;
+			}
+
+			// informing the local server of the operation type
+			bytes = write(app_socket, &type, sizeof(char));
+			if(bytes != sizeof(char)) {
+				print_error("Broken message sent to local server");
 				return SENT_BROKEN_MESSAGE;
 			}
 
-			bytes = write(app_socket, callback_info->key, (MAX_KEY + 1) * sizeof(char));
-			if(bytes != (MAX_KEY + 1) * sizeof(char)) {
+			// sending key to the stream
+			len_bytes = (MAX_KEY + 1) * sizeof(char);
+			bytes = write(app_socket, callback_info->key, len_bytes);
+			if(bytes != len_bytes) {
+				print_error("Broken message sent to local server");
 				return SENT_BROKEN_MESSAGE;
 			}
 
-			bytes = write(app_socket, callback_info->name, (MAX_NAME + 1) * sizeof(char));
-			if(bytes != (MAX_NAME + 1) * sizeof(char)) {
+			// sending name to the stream
+			len_bytes = (MAX_NAME + 1) * sizeof(char);
+			bytes = write(app_socket, callback_info->name, len_bytes);
+			if(bytes != len_bytes) {
+				print_error("Broken message sent to local server");
 				return SENT_BROKEN_MESSAGE;
 			}
 
+			// reading response frmo stream
 			bytes = read(app_socket, &response, sizeof(int));
-			if(bytes != sizeof(int)) {
+			if(bytes == 0) {
+				print_error("Local server closed the connection");
+				close_connection();
+				return CLOSED_CONNECTION;
+			} else if(bytes != sizeof(int)) {
+				print_error("Broken message received from local server");
 				return RECEIVED_BROKEN_MESSAGE;
 			}
 
@@ -755,21 +837,29 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 				callback_info->next = callbacks_list;
 				callbacks_list = callback_info;
 
-				pthread_create(&(callback_info->thread), NULL, callback_handler, callback_info);
+				if(pthread_create(&(callback_info->thread), NULL, callback_handler, callback_info) != 0) {
+					print_error("Unable to launch callback thread");
+					return UNSUCCESSFUL_SUBOPERATION;
+				}
+
+				print_success("Success", "Able to register callback");
 
 				return SUCCESSFUL_OPERATION;
 			} else {
+				print_error("Unble to register callback");
+
 				sem_close(callback_info->sem_id);
 				sem_unlink(callback_info->name);
 				free(callback_info);
 
 				return UNSUCCESSFUL_OPERATION;
 			}
-
 		}
 		// updates callback function if one already exists
 		else {
 			aux->callback_function = callback_function;
+
+			print_success("Success", "Callback function updated");
 
 			return SUCCESSFUL_OPERATION;
 		}

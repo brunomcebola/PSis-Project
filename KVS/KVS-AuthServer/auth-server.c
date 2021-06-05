@@ -200,7 +200,7 @@ void* console_handler(void* arg) {
 		bytes =
 			recvfrom(console_auth_server_socket, &operation, sizeof(operation), MSG_WAITALL, (struct sockaddr*)&local_server_addr, &len);
 		if(bytes == -1) {
-			return;
+			return NULL;
 		}
 
 		if(operation.type == GET) {
@@ -348,7 +348,7 @@ int setup_server() {
 	console_auth_server_addr.sin_addr.s_addr = inet_addr(AUTH_SERVER_ADDRESS);
 	console_auth_server_addr.sin_port = htons(CONSOLE_AUTH_SERVER_PORT);
 
-	if(pthread_rwlock_init(&groups_rwlock, NULL) == NULL){
+	if(pthread_rwlock_init(&groups_rwlock, NULL)  != 0){
 		return UNSUCCESSFUL_OPERATION;
 	}
 
