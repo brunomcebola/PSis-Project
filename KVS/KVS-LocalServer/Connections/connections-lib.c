@@ -192,11 +192,38 @@ int setup_connections() {
 	return SUCCESSFUL_CONNECTION;
 }
 
+// TODO falta para cima
+
 // APPS HANDLING FUNCTIONS
 
-void close_connection(connection_t* connection, group_t* group, int list_critical_region, int group_critical_region) {
+/*********************************************************************
+*
+** void close_connection(connection_t* connection, 
+**				        int list_critical_region, int group_critical_region) 
+*
+** Description:
+*	 	Clsoes the specified connection.
+*
+** Parameters:
+*  	@param connection 					 - struct holding connections settings;
+*  	@param list_critical_region  - flag indicating if function is being 
+*																	 called from inside a list reserved 
+*																	 area;
+*  	@param group_critical_region - flag indicating if function is being 
+*																	 called from inside a group reserved 
+*																	 area.
+*
+** Return:
+*		Nothing is returned by this function.
+*
+** Side-effects:
+*		This function has no side effects.
+*	
+*********************************************************************/
+void close_connection(connection_t* connection, int list_critical_region, int group_critical_region) {
 	time_t t;
 	struct tm tm;
+	group_t* group = connection->group;
 
 	t = time(NULL);
 	localtime_r(&t, &tm);
@@ -208,8 +235,14 @@ void close_connection(connection_t* connection, group_t* group, int list_critica
 			tm.tm_hour,
 			tm.tm_min,
 			tm.tm_sec);
-	close(connection->socket);
-	connection->socket = -1;
+	if(connection->socket != -1) {
+		close(connection->socket);
+		connection->socket = -1;
+	}
+	if(connection->cb_socket != -1) {
+		close(connection->cb_socket);
+		connection->cb_socket = -1;
+	}
 	connection->group = NULL;
 
 	// groups list critical region
@@ -225,8 +258,6 @@ void close_connection(connection_t* connection, group_t* group, int list_critica
 	pthread_exit(0);
 }
 
-// TODO falta para cima
-
 /*********************************************************************
 *
 ** void put_value(connection_t* connection) 
@@ -241,7 +272,7 @@ void close_connection(connection_t* connection, group_t* group, int list_critica
 *  	@param connection - struct holding connections settings.
 *
 ** Return:
-*		Nothing is returned by the function.
+*		Nothing is returned by this function.
 *
 ** Side-effects:
 *		If the client closes the connection then the function forces the
@@ -257,7 +288,7 @@ void put_value(connection_t* connection) {
 	len_bytes = (MAX_KEY + 1) * sizeof(char);
 	bytes = read(connection->socket, key, len_bytes);
 	if(bytes == 0) {
-		close_connection(connection, connection->group, 0, 1);
+		close_connection(connection, 0, 1);
 	} else if(bytes != len_bytes) {
 		return;
 	}
@@ -265,19 +296,19 @@ void put_value(connection_t* connection) {
 	// reading the value from the stream
 	bytes = read(connection->socket, &len_bytes, sizeof(int));
 	if(bytes == 0) {
-		close_connection(connection, connection->group, 0, 1);
+		close_connection(connection, 0, 1);
 	} else if(bytes != sizeof(int)) {
 		return;
 	}
 
 	value = calloc(len_bytes, sizeof(char));
 	if(value == NULL) {
-		close_connection(connection, connection->group, 0, 1);
+		close_connection(connection, 0, 1);
 	}
 
 	bytes = read(connection->socket, value, len_bytes);
 	if(bytes == 0) {
-		close_connection(connection, connection->group, 0, 1);
+		close_connection(connection, 0, 1);
 	} else if(bytes != len_bytes) {
 		return;
 	}
@@ -286,7 +317,7 @@ void put_value(connection_t* connection) {
 	code = put_on_hash_table(connection->group->hash_table, key, value);
 
 	if(code == NO_MEMORY_AVAILABLE) {
-		close_connection(connection, connection->group, 0, 1);
+		close_connection(connection, 0, 1);
 	}
 
 	// sending the status code to the stream
@@ -310,7 +341,7 @@ void put_value(connection_t* connection) {
 *  	@param connection - struct holding connections settings.
 *
 ** Return:
-*		Nothing is returned by the function.
+*		Nothing is returned by this function.
 *		The value is sent to the client via socket write
 *
 ** Side-effects:
@@ -328,7 +359,7 @@ void get_value(connection_t* connection) {
 	len_bytes = (MAX_KEY + 1) * sizeof(char);
 	bytes = read(connection->socket, key, len_bytes);
 	if(bytes == 0) {
-		close_connection(connection, connection->group, 0, 1);
+		close_connection(connection, 0, 1);
 	} else if(bytes != len_bytes) {
 		return;
 	}
@@ -337,7 +368,7 @@ void get_value(connection_t* connection) {
 	code = get_from_hash_table(connection->group->hash_table, key, &value);
 
 	if(code == NO_MEMORY_AVAILABLE) {
-		close_connection(connection, connection->group, 0, 1);
+		close_connection(connection, 0, 1);
 	} else if(code == NONEXISTENT_KEY) {
 		len_bytes = sizeof(char);
 		value = calloc(1, sizeof(char));
@@ -371,7 +402,7 @@ void get_value(connection_t* connection) {
 *  	@param connection - struct holding connections settings
 *
 ** Return:
-*		Nothing is returned by the function.
+*		Nothing is returned by this function.
 *		A success/error code is sent to the client via socket write
 *
 ** Side-effects:
@@ -388,7 +419,7 @@ void delete_value(connection_t* connection) {
 	len_bytes = (MAX_KEY + 1) * sizeof(char);
 	bytes = read(connection->socket, key, len_bytes);
 	if(bytes == 0) {
-		close_connection(connection, connection->group, 0, 1);
+		close_connection(connection, 0, 1);
 	} else if(bytes != len_bytes) {
 		return;
 	}
@@ -437,20 +468,20 @@ void register_callback(connection_t* connection) {
 	// reading key
 	bytes = read(connection->socket, key, (MAX_KEY + 1) * sizeof(char));
 	if(bytes != (MAX_KEY + 1) * sizeof(char)) {
-		close_connection(connection, connection->group, 0, 1);
+		close_connection(connection, 0, 1);
 	}
 
 	// reading semaphore/pipe name
 	bytes = read(connection->socket, name, (MAX_NAME + 1) * sizeof(char));
 	if(bytes != (MAX_NAME + 1) * sizeof(char)) {
-		close_connection(connection, connection->group, 0, 1);
+		close_connection(connection, 0, 1);
 	}
 
 	code = put_sem_on_hash_table(connection->group->hash_table, key, name);
 
 	bytes = write(connection->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection(connection, connection->group, 0, 1);
+		close_connection(connection, 0, 1);
 	}
 
 	return;
@@ -470,7 +501,7 @@ void* connection_handler(void* connection) {
 	bytes = read(((connection_t*)connection)->socket, &connection_info, sizeof(connection_packet));
 	if(bytes != sizeof(connection_packet)) {
 		pthread_mutex_unlock(&authentication_mutex);
-		close_connection((connection_t*)connection, NULL, 0, 0);
+		close_connection((connection_t*)connection, 0, 0);
 	}
 
 	((connection_t*)connection)->pid = connection_info.pid;
@@ -484,7 +515,7 @@ void* connection_handler(void* connection) {
 				   len);
 	if(bytes != sizeof(access_packet)) {
 		pthread_mutex_unlock(&authentication_mutex);
-		close_connection((connection_t*)connection, NULL, 0, 0);
+		close_connection((connection_t*)connection, 0, 0);
 	}
 
 	// handle response from auth server
@@ -492,13 +523,13 @@ void* connection_handler(void* connection) {
 		apps_local_server_inet_socket, &code, sizeof(int), MSG_WAITALL, (struct sockaddr*)&apps_auth_server_inet_socket_addr, &len);
 	if(bytes != sizeof(int)) {
 		pthread_mutex_unlock(&authentication_mutex);
-		close_connection((connection_t*)connection, NULL, 0, 0);
+		close_connection((connection_t*)connection, 0, 0);
 	}
 
 	bytes = write(((connection_t*)connection)->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
 		pthread_mutex_unlock(&authentication_mutex);
-		close_connection((connection_t*)connection, NULL, 0, 0);
+		close_connection((connection_t*)connection, 0, 0);
 	}
 
 	pthread_rwlock_wrlock(&group_list_rwlock);
@@ -516,7 +547,7 @@ void* connection_handler(void* connection) {
 	if(group == NULL) {
 		group = calloc(1, sizeof(group_t));
 		if(group == NULL) {
-			close_connection((connection_t*)connection, NULL, 1, 0);
+			close_connection((connection_t*)connection, 1, 0);
 		}
 
 		strncpy(group->group_id, connection_info.credentials.group_id, MAX_GROUP_ID);
@@ -527,7 +558,7 @@ void* connection_handler(void* connection) {
 
 		// inicializing the rwlock for each data
 		if(pthread_rwlock_init(&group->rwlock, NULL) != 0) {
-			close_connection((connection_t*)connection, NULL, 1, 0);
+			close_connection((connection_t*)connection, 1, 0);
 		}
 
 		groups_list = group;
@@ -537,7 +568,7 @@ void* connection_handler(void* connection) {
 	while(1) {
 		bytes = read(((connection_t*)connection)->socket, &operation_type, sizeof(char));
 		if(bytes != sizeof(char)) {
-			close_connection((connection_t*)connection, NULL, 1, 0);
+			close_connection((connection_t*)connection, 1, 0);
 		}
 
 		pthread_rwlock_rdlock(&group_list_rwlock);
@@ -553,7 +584,7 @@ void* connection_handler(void* connection) {
 		((connection_t*)connection)->group = group;
 
 		if(group == NULL) {
-			close_connection((connection_t*)connection, NULL, 1, 0);
+			close_connection((connection_t*)connection, 1, 0);
 		}
 
 		pthread_rwlock_rdlock(&group->rwlock);
@@ -590,7 +621,7 @@ void* connections_listener(void* arg) {
 	while(1) {
 		connection = calloc(1, sizeof(connection_t));
 		if(connection == NULL) {
-			close_connection((connection_t*)connection, NULL, 0, 0);
+			close_connection((connection_t*)connection, 0, 0);
 		}
 
 		connection->socket = accept(local_server_unix_socket, NULL, NULL);
