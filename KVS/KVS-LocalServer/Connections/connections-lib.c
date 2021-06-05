@@ -307,8 +307,7 @@ void put_value(connection_t* connection) {
 *		hashtable.
 *
 ** Parameters:
-*  	@param connection - struct holding connections settings
-*  	@param group - struct holding group infos
+*  	@param connection - struct holding connections settings.
 *
 ** Return:
 *		Nothing is returned by the function.
@@ -361,8 +360,6 @@ void get_value(connection_t* connection) {
 	free(value);
 }
 
-// TODO falta para baixo
-
 /*******************************************************************
 *
 ** void delete_value(connection_t* connection, group_t* group) 
@@ -372,7 +369,6 @@ void get_value(connection_t* connection) {
 *
 ** Parameters:
 *  	@param connection - struct holding connections settings
-*  	@param group - struct holding group infos
 *
 ** Return:
 *		Nothing is returned by the function.
@@ -384,35 +380,53 @@ void get_value(connection_t* connection) {
 *
 *******************************************************************/
 void delete_value(connection_t* connection) {
-	int bytes = -1, code = 0;
+	int bytes = -1, len_bytes = 0, code = 0, status = 0;
 	char key[MAX_KEY + 1];
 	connection_t* aux = connections_list;
 
-	bytes = read(connection->socket, key, (MAX_KEY + 1) * sizeof(char));
-	if(bytes != (MAX_KEY + 1) * sizeof(char)) {
+	// reading key from stream
+	len_bytes = (MAX_KEY + 1) * sizeof(char);
+	bytes = read(connection->socket, key, len_bytes);
+	if(bytes == 0) {
 		close_connection(connection, connection->group, 0, 1);
+	} else if(bytes != len_bytes) {
+		return;
 	}
 
+	// delete key/value pair from group
 	code = delete_from_hash_table(connection->group->hash_table, key);
 
+	// sending status code to the stream
 	bytes = write(connection->socket, &code, sizeof(int));
 	if(bytes != sizeof(int)) {
-		close_connection(connection, connection->group, 0, 1);
+		return;
 	}
 
+	// notify all apps connected to the group that a key/pair value
+	// (send through the stream) was deleted
+	status = SUCCESSFUL_OPERATION;
 	while(aux != NULL) {
 		if(aux->group == connection->group) {
-			bytes = write(aux->cb_socket, key, (MAX_KEY + 1) * sizeof(char));
-			if(bytes != (MAX_KEY + 1) * sizeof(char)) {
-				close_connection(connection, connection->group, 0, 1);
+			len_bytes = (MAX_KEY + 1) * sizeof(char);
+			bytes = write(aux->cb_socket, key, len_bytes);
+			if(bytes != len_bytes) {
+				status = UNSUCCESSFUL_OPERATION;
+				break;
 			}
 		}
 
 		aux = aux->next;
 	}
+
+	// sending notification status code to the stream
+	bytes = write(connection->socket, &status, sizeof(int));
+	if(bytes != sizeof(int)) {
+		return;
+	}
 }
 
-// TODO: missing code commentary
+// TODO falta para baixo
+
 void register_callback(connection_t* connection) {
 	int bytes = 0;
 	int code = 0;
@@ -442,8 +456,6 @@ void register_callback(connection_t* connection) {
 	return;
 }
 
-// TODO: missing code commentary
-// handles connections between app local auth
 void* connection_handler(void* connection) {
 	int bytes = -1, code = 0;
 	int len = sizeof(struct sockaddr_in);
@@ -569,7 +581,6 @@ void* connection_handler(void* connection) {
 	}
 }
 
-// TODO: missing code commentary
 void* connections_listener(void* arg) {
 	int sockaddr_size = sizeof(struct sockaddr_un);
 	connection_t* connection = NULL;
@@ -615,7 +626,6 @@ void* connections_listener(void* arg) {
 	}
 }
 
-// TODO: missing code commentary
 void start_connections() {
 	listen(local_server_unix_socket, 10);
 

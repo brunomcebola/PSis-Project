@@ -152,6 +152,8 @@ void* callback_socket_handler(void* args) {
 *		On success: SUCCESSFUL_OPERATION is returned. 
 *
 *		On error: 
+*		- CONNECTION_ALREADY_EXISTS is returned if a connection already
+*			exists
 *		- WRONG_PARAM is returned if either the secret or the  group_id 
 *			does not have the correct size; 
 *		- UNABLE_TO_CONNECT is return if either the connection to main 
@@ -183,6 +185,11 @@ int establish_connection(char* group_id, char* secret) {
 
 	connection_packet connection_info;
 
+	// verifies if there is a connection
+	if(app_socket != -1) {
+		print_error("Already to the local server");
+		return CONNECTION_ALREADY_EXISTS;
+	}
 	// verifies if the group id has more than MAX_GROUP_ID chars
 	if(strlen(group_id) > MAX_GROUP_ID) {
 		print_error("The group id can have a max of " STR(MAX_GROUP_ID) " chars");
@@ -325,6 +332,8 @@ int establish_connection(char* group_id, char* secret) {
 ** Side-effects:
 *		If the local server closes the connection then the function forces
 *		the connection to close also on the app side.
+*		If a callback has been set for the given key (which means it is an
+*		update operation) then it gets triggered upon successful edition
 *	
 *********************************************************************/
 int put_value(char* key, char* value) {
@@ -339,9 +348,8 @@ int put_value(char* key, char* value) {
 		print_error("Unable to connect to the local server");
 		return UNABLE_TO_CONNECT;
 	}
-
 	// verifies if the key has more than MAX_KEY chars
-	if(strlen(key) > MAX_KEY) {
+	else if(strlen(key) > MAX_KEY) {
 		print_error("The key can have a max of " STR(MAX_KEY) " chars");
 		return WRONG_PARAM;
 	}
@@ -453,9 +461,8 @@ int get_value(char* key, char** value) {
 		print_error("Unable to connect to the local server");
 		return UNABLE_TO_CONNECT;
 	}
-
 	// verifies if the key has more than MAX_KEY chars
-	if(strlen(key) > MAX_KEY) {
+	else if(strlen(key) > MAX_KEY) {
 		print_error("The key can have a max of " STR(MAX_KEY) " chars");
 		return WRONG_PARAM;
 	}
@@ -504,7 +511,127 @@ int get_value(char* key, char** value) {
 			return RECEIVED_BROKEN_MESSAGE;
 		}
 
+		if(strlen(*value) == 0) {
+			print_warning("The provided key/value pair does not exist");
+		} else {
+			print_success("Success", "Able to obtain value associated with the provided key");
+		}
+
 		return SUCCESSFUL_OPERATION;
+	}
+}
+
+/*********************************************************************
+*
+** int delete_value(char* key)
+*
+** Description:
+*		If there is an established connection to a local server then the
+*		provided key/value pair is delete from the group associated to the
+*		connection.
+*
+** Parameters:
+*  	@param key - string that identifies the key/value pair inside the
+*								 connection's group (it must have a maximum size of
+*								 MAX_Key).
+*
+** Return:
+*		On success: SUCCESSFUL_OPERATION is returned. 
+*
+*		On error: 
+*		- WRONG_PARAM is returned if either the secret or the  group_id 
+*			does not have the correct size; 
+*		- UNABLE_TO_CONNECT is return if either the connection to main 
+*			socket or to the callback socket is not successful; 
+*		- CLOSED_CONNECTION is returned if the local server closes the
+* 		connection;
+*		- SENT_BROKEN_MESSAGE is return if there is a problem sending the 
+*			connection_packet to the local server; 
+*		- RECEIVED_BROKEN_MESSAGE is return if there is a problem reading
+*			the response from the local server;
+*   - UNSUCCESSFUL_SUBOPERATION is returned when a callback handler
+*			could not be erased.
+*
+** Side-effects:
+*		If the local server closes the connection then the function forces
+*		the connection to close also on the app side.
+*		If a callback has been set for the given key then it gets deleted
+*		upon successful key/value pair deletion.
+*	
+*********************************************************************/
+int delete_value(char* key) {
+	char type = DEL;
+	int bytes = 0, len_bytes = 0;
+	int response = -1;
+	char s_key[MAX_KEY + 1];
+
+	// verifies if there is a connection
+	if(app_socket == -1) {
+		print_error("Unable to connect to the local server");
+		return UNABLE_TO_CONNECT;
+	}
+	// verifies if the group id has more than MAX_GROUP_ID chars
+	else if(strlen(key) > MAX_KEY) {
+		print_error("The key can have a max of " STR(MAX_KEY) " chars");
+		return WRONG_PARAM;
+	}
+	// verifies if a group id is specified
+	else if(strlen(key) == 0) {
+		print_error("No key was specified");
+		return WRONG_PARAM;
+	}
+	// verifies if a callback function is specified
+	else {
+		// informing the local server of the operation type
+		bytes = write(app_socket, &type, sizeof(char));
+		if(bytes != sizeof(char)) {
+			return SENT_BROKEN_MESSAGE;
+		}
+
+		// sending the key to the stream
+		strncpy(s_key, key, MAX_KEY);
+		len_bytes = (MAX_KEY + 1) * sizeof(char);
+		bytes = write(app_socket, s_key, len_bytes);
+		if(bytes != len_bytes) {
+			print_error("Broken message sent to local server");
+			return SENT_BROKEN_MESSAGE;
+		}
+
+		// reading response from stream
+		bytes = read(app_socket, &response, sizeof(int));
+		if(bytes == 0) {
+			print_error("Local server closed the connection");
+			close_connection();
+			return CLOSED_CONNECTION;
+		} else if(bytes != sizeof(int)) {
+			print_error("Broken message received from local server");
+			return RECEIVED_BROKEN_MESSAGE;
+		}
+
+		if(response == NONEXISTENT_KEY) {
+			print_warning("The provided key does not exist");
+		} else {
+			print_success("Success", "Able to delete key/value pair");
+		}
+
+		// reading callback management response from stream
+		bytes = read(app_socket, &response, sizeof(int));
+		if(bytes == 0) {
+			print_error("Local server closed the connection");
+			close_connection();
+			return CLOSED_CONNECTION;
+		} else if(bytes != sizeof(int)) {
+			print_error("Broken message received from local server");
+			return RECEIVED_BROKEN_MESSAGE;
+		}
+
+		if(response == SUCCESSFUL_OPERATION) {
+			print_success("Success", "Able to erase all callbacks related to the key/value pair");
+			return SUCCESSFUL_OPERATION;
+		} else {
+			print_error("Unable to erase all callbacks related to the key/value pair");
+			return UNSUCCESSFUL_SUBOPERATION;
+		}
 	}
 }
 
@@ -551,46 +678,6 @@ int close_connection() {
 }
 
 // TODO falta para baixo
-
-int delete_value(char* key) {
-	char type = DEL;
-	int bytes = 0;
-	int response = -1;
-	char s_key[MAX_KEY + 1];
-
-	// verifies if the group id has more than MAX_GROUP_ID chars
-	if(strlen(key) > MAX_KEY) {
-		print_error("The key can have a max of " STR(MAX_KEY) " chars");
-		return WRONG_PARAM;
-	}
-	// verifies if a group id is specified
-	else if(strlen(key) == 0) {
-		print_error("No key was specified");
-		return WRONG_PARAM;
-	}
-	// verifies if a callback function is specified
-	else {
-		strncpy(s_key, key, MAX_KEY);
-
-		// letting the local_sever know that we are deleting a value
-		bytes = write(app_socket, &type, sizeof(char));
-		if(bytes != sizeof(char)) {
-			return SENT_BROKEN_MESSAGE;
-		}
-
-		bytes = write(app_socket, s_key, (MAX_KEY + 1) * sizeof(char));
-		if(bytes != (MAX_KEY + 1) * sizeof(char)) {
-			return SENT_BROKEN_MESSAGE;
-		}
-
-		bytes = read(app_socket, &response, sizeof(int));
-		if(bytes != sizeof(int)) {
-			return RECEIVED_BROKEN_MESSAGE;
-		}
-	}
-
-	return SUCCESSFUL_CONNECTION;
-}
 
 int register_callback(char* key, void (*callback_function)(char*)) {
 	char type = RCB;
