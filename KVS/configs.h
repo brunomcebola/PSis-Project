@@ -20,9 +20,9 @@
 
 // commun structs
 
-#define MAX_GROUP_ID 1024
+#define MAX_GROUP_ID 64
 #define MAX_SECRET 32
-#define MAX_KEY 1024
+#define MAX_KEY 64
 #define MAX_NAME MAX_KEY + 16
 
 typedef struct {
@@ -71,6 +71,7 @@ typedef struct {
 #define NONEXISTENT_KEY -11
 #define CONNECTION_ALREADY_EXISTS -12
 #define UNSUCCESSFUL_SUBOPERATION -13
+#define NONEXISTENT_HASH_TABLE -14
 
 #define SUCCESSFUL_OPERATION 1
 #define SUCCESSFUL_CONNECTION 2

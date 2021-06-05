@@ -140,7 +140,7 @@ void* callback_socket_handler(void* args) {
 *		requesting application to manipulate a specified group (one of the
 *		paramenters of the connection_packet). If the sent credentials are
 *		correct then a connection is established. Otherwise, an error is
-*		returned.		
+*		returned.		    
 *
 ** Parameters:
 *  	@param group_id - string that identifies the group id (which must
