@@ -108,7 +108,7 @@ unsigned int hash(char* key) {
 *		hash-table that's needed for storing information.	
 *
 ** Parameters:
-*  		There are no parameters in this function.
+*  	There are no parameters in this function.
 *
 ** Return:
 *		On success: A pointer of the array that represents the hash 
@@ -148,8 +148,8 @@ key_pair_t** create_hash_table() {
 *
 *		On error: 
 *		- NONEXISTENT_HASH_TABLE if the parameter given to the function
-*		is NULL, which means that there's isn't a hash table to be
-*		destroyed.
+*		  is NULL, which means that there's isn't a hash table to be
+*		  destroyed.
 *
 ** Side-effects:
 *		This function has no side-effect.
@@ -359,7 +359,7 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 *
 *		On error: 
 *		- NONEXISTENT_KEY is returned if the key doesn't already
-*		exist in the hash table given;
+*		  exist in the hash table given;
 *		- NO_MEMORY_AVAILABLE if there's any error with the calloc.
 *
 ** Side-effects:
@@ -415,7 +415,8 @@ int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
 *		possible to delete the key in the hash table.
 *
 *		On error: 
-*		- WRONG_KEY if the key didn't exist in the hash table given.
+*		- NONEXISTENT_KEY if the key didn't exist in the hash table 
+*		  given.
 *
 ** Side-effects:
 *		This function has no side-effect.
@@ -430,7 +431,7 @@ int delete_from_hash_table(key_pair_t** hash_table, char* key) {
 	int hash_position = hash(key);
 	key_pair = hash_table[hash_position];
 	if(key_pair == NULL) {
-		return WRONG_KEY;
+		return NONEXISTENT_KEY;
 	}
 	// searching for the key
 	while(key_pair) {
@@ -454,7 +455,7 @@ int delete_from_hash_table(key_pair_t** hash_table, char* key) {
 		return SUCCESSFUL_OPERATION;
 	}
 
-	return WRONG_KEY;
+	return NONEXISTENT_KEY;
 }
 
 
@@ -464,7 +465,7 @@ int delete_from_hash_table(key_pair_t** hash_table, char* key) {
 **int get_number_of_entries() 
 *
 ** Description:
-*		It counts the number of all the keys stored in the hash table
+*		It counts the number of all the keys stored in the hash table.
 *
 ** Parameters:
 *  	@param hash_table - pointer of an array that represents the
@@ -474,7 +475,7 @@ int delete_from_hash_table(key_pair_t** hash_table, char* key) {
 *		On success: The number of entries in the hash table is returned.
 *
 *		On error: 
-*		- NONEXISTENT_HASH_TABLE if the hash table given doesn't exist
+*		- NONEXISTENT_HASH_TABLE if the hash table given doesn't exist.
 *
 ** Side-effects:
 *		This function has no side-effect.		

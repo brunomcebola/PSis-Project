@@ -31,14 +31,13 @@ key_pair_t** groups;
 *		letter and 1 number.
 *
 ** Parameters:
-*  		There are no parameters in this function
+*  	There are no parameters in this function.
 *
 ** Return:
-*		Returns a string (char *) that represents the secret of a group
+*		On success: The string of the secret created is returned. 
 *
 ** Side-effects:
-*		The side-effect is that if the max size is an odd number this
-*		algorithm breaks
+*		This function has no side-effect.
 *	
 *************************************************************************/
 char* generate_secret() {
@@ -55,29 +54,32 @@ char* generate_secret() {
 	return key;
 }
 
+
+
 /*************************************************************************
 *
 ** void create_group(struct sockaddr_in* addr, char* group_id) 
 *
 ** Description:
-*		Stores the new group in an hash-table.
+*		Stores the new group in the hash-table and gives the key to the 
+*		local_server via INET Datagram Socket.
 *
 ** Parameters:
-*  		@param addr - struct with the information of the inet socket
-*  		@param group_id - string of the group that we want to create
+*  	@param addr - struct with the information of the inet socket;
+*  	@param group_id - string of the group that we want to create.
 *
 ** Return:
-*		This function doesn't return any information
-*		It sends information via a datagram inet socket 
+*		This function doesn't return any information.
 *
 ** Side-effects:
-*		There's no side-effect
-*	TODO: ERROR HANDLING
+*		This function has no side-effect..
+*	
 *************************************************************************/
 void create_group(struct sockaddr_in* addr, char* group_id) {
 	int bytes = -1, code = 0;
 	char* secret = NULL;
 
+	//verifies if the group
 	code = get_from_hash_table(groups, group_id, &secret);
 
 	if(code == NONEXISTENT_KEY) {
@@ -87,8 +89,8 @@ void create_group(struct sockaddr_in* addr, char* group_id) {
 	}
 
 	bytes = sendto(console_auth_server_socket, secret, MAX_SECRET + 1, MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
-	if(bytes == -1) {
-		// TODO
+	if(bytes != MAX_SECRET + 1) {
+		return;
 	}
 
 	free(secret);
@@ -96,24 +98,25 @@ void create_group(struct sockaddr_in* addr, char* group_id) {
 	return;
 }
 
+
 /*************************************************************************
 *
-** void delete_group() 
+** void delete_group(struct sockaddr_in* addr, char* group_id) 
 *
 ** Description:
-*		Deletes a specified group in an hash-table.
+*		Deletes a specified group in an hash-table sending the feedback of
+*		this operation to the local_server via INET Datagram socket.
 *
 ** Parameters:
-*  		@param addr - struct with the information of the inet socket
-*  		@param group_id - string of the group that we want to delete
+*  	@param addr - struct with the information of the inet socket;
+*  	@param group_id - string of the group that we want to delete.
 *
 ** Return:
 *		This function doesn't return any information
-*		It sends information via a datagram inet socket 
 *
 ** Side-effects:
 *		There's no side-effect
-*	TODO: ERROR HANDLING
+*	
 *************************************************************************/
 void delete_group(struct sockaddr_in* addr, char* group_id) {
 	int bytes = -1;
@@ -123,7 +126,7 @@ void delete_group(struct sockaddr_in* addr, char* group_id) {
 
 	bytes = sendto(console_auth_server_socket, &response, sizeof(int), MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
 	if(bytes == -1) {
-		// TODO
+		return;
 	}
 
 	return;
@@ -131,23 +134,23 @@ void delete_group(struct sockaddr_in* addr, char* group_id) {
 
 /*************************************************************************
 *
-** void get_group_secret() 
+** void get_group_secret(struct sockaddr_in* addr, char* group_id)  
 *
 ** Description:
 *		Searches for a secret of a specified group, giving that secret
-*		as a feedback to the local_server / console
+*		as a feedback to the local_server / console, sending the secret
+*		to the local_server via INET Datagram socket.
 *
 ** Parameters:
-*  		@param addr - struct with the information of the inet socket
-*  		@param group_id - string of the group that we want to create
+*  	@param addr - struct with the information of the inet socket;
+*  	@param group_id - string of the group that we want to create.
 *
 ** Return:
-*		This function doesn't return any information
-*		It sends information via a datagram inet socket 
+*		This function doesn't return any information.
 *
 ** Side-effects:
-*		There's no side-effect in this function
-*	TODO: ERROR HANDLING
+*		There's no side-effect in this function.
+*	
 *************************************************************************/
 void get_group_secret(struct sockaddr_in* addr, char* group_id) {
 	int bytes = -1;
@@ -165,24 +168,24 @@ void get_group_secret(struct sockaddr_in* addr, char* group_id) {
 
 /*******************************************************************
 *
-**void* console_handler() 
+**void* console_handler(void* arg) 
 *
 ** Description:
 *		Handles whichs algorithms are supposed to be used based on
 *		the will of the admin. If the admin wants to delete or
-*		create a group, this functions calls the necessary funtions
-*		to do that.
+*		create a group, for example, this functions calls the 
+*		necessary funtions to do that.
 *
 ** Parameters:
-*  		@param arg - not used, just labeled because of pthread 
-*					definition
+*  	@param arg - not used, just labeled because of pthread 
+*					definition.
 *
 ** Return:
-*		This function doesn't return any information
+*		This function doesn't return any information.
 *
 ** Side-effects:
-*		There's no side-effect 
-*	 TODO: ERROR HANDLING
+*		There's no side-effect.
+*	 
 *******************************************************************/
 void* console_handler(void* arg) {
 	int bytes = -1;
@@ -197,10 +200,9 @@ void* console_handler(void* arg) {
 		bytes =
 			recvfrom(console_auth_server_socket, &operation, sizeof(operation), MSG_WAITALL, (struct sockaddr*)&local_server_addr, &len);
 		if(bytes == -1) {
-			perror("");
-			exit(-1);
+			return;
 		}
-		// TODO
+
 		if(operation.type == GET) {
 			pthread_rwlock_rdlock(&groups_rwlock);
 		} else {
@@ -228,17 +230,18 @@ void* console_handler(void* arg) {
 ** void app_handler() 
 *
 ** Description:
-*		Verifies if the all the group trying to connect is sending
+*		Verifies if the all the groups trying to connect is sending
 *		the right information. Basically authenticates the group.
+*		Checking if the group exists and it's secret is right.
 *
 ** Parameters:
-*  		There are no parameters in this function
+*  	There are no parameters in this function.
 *
 ** Return:
-*		This function doesn't return any information
+*		This function doesn't return any information.
 *
 ** Side-effects:
-*		There's no side-effect 
+*		There's no side-effect.
 *	
 *******************************************************************/
 void apps_handler() {
@@ -283,24 +286,31 @@ void apps_handler() {
 
 /*******************************************************************
 *
-** void setup_server() 
+** int setup_server() 
 *
 ** Description:
 *		Initializes all the connections between the authentication
 *		server and the local server. Connections between 
-*		local-console and local-app handler
+*		local-console and local-app handler.
 *
 ** Parameters:
-*  		There are no parameters in this function
+*  	There are no parameters in this function.
 *
 ** Return:
-*		This function doesn't return any information
+*		On success: SUCCESSFUL_OPERATION is returned if all the 
+*		connections are done.
+*
+*		On error: 
+*		- UNABLE_TO_CONNECT is returned if there's any error while
+*		  trying to establish the sockets;
+*		- UNSUCCESSFUL_OPERATION is returned if it's not possible
+*		  to inicialize the read write lock mutex.
 *
 ** Side-effects:
-*		There's no side-effect 
+*		There's no side-effect .
 *	
 *******************************************************************/
-void setup_server() {
+int setup_server() {
 	int opt = 1;
 
 	struct sockaddr_in apps_auth_server_addr;
@@ -310,23 +320,23 @@ void setup_server() {
 
 	// sockets creation
 	if((apps_auth_server_socket = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
-		perror("");
-		exit(-1);
+		print_error("Unable to create the application socket");
+		return UNABLE_TO_CONNECT;
 	}
 
 	if((console_auth_server_socket = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
-		perror("");
-		exit(-1);
+		print_error("Unable to create the console socket");
+		return UNABLE_TO_CONNECT;
 	}
 
 	// "unlink" inet sockets
 	if(setsockopt(apps_auth_server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-		perror("");
-		exit(-1);
+		print_error("Unable to connect to the application socket");
+		return UNABLE_TO_CONNECT;
 	}
 	if(setsockopt(console_auth_server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-		perror("");
-		exit(-1);
+		print_error("Unable to connect to the console socket");
+		return UNABLE_TO_CONNECT;
 	}
 
 	// setting up the server info
@@ -338,37 +348,37 @@ void setup_server() {
 	console_auth_server_addr.sin_addr.s_addr = inet_addr(AUTH_SERVER_ADDRESS);
 	console_auth_server_addr.sin_port = htons(CONSOLE_AUTH_SERVER_PORT);
 
-	pthread_rwlock_init(&groups_rwlock, NULL);
+	if(pthread_rwlock_init(&groups_rwlock, NULL) == NULL){
+		return UNSUCCESSFUL_OPERATION;
+	}
 
-	// bind the sockets
+	// bind the socket
 	if(bind(apps_auth_server_socket, (struct sockaddr*)&apps_auth_server_addr, sizeof(struct sockaddr_in)) < 0) {
-		perror("");
-		exit(-1);
+		print_error("Unable to connect to the application socket");
+		return UNABLE_TO_CONNECT;
 	}
 	if(bind(console_auth_server_socket, (struct sockaddr*)&console_auth_server_addr, sizeof(struct sockaddr_in)) < 0) {
-		perror("");
-		exit(-1);
+		print_error("Unable to connect to the console socket");
+		return UNABLE_TO_CONNECT;
 	}
 
-	// TODO mutex init
-
 	//create hashtable to store the groups
-
 	groups = create_hash_table();
 
 	printf("Starting console server...\n\n");
+
+	return SUCCESSFUL_OPERATION;
 }
 
 int main(int argc, char const* argv[]) {
 	pthread_t console_handler_thread;
+	int code = -1;
 
-	setup_server();
+	code = setup_server();
 
 	pthread_create(&console_handler_thread, NULL, console_handler, NULL);
 
 	apps_handler();
-	// TODO procurar na net signal from terminal
-	// pthread_rwlock_destroy(&groups_rwlock)
 
 	return 0;
 }
