@@ -36,7 +36,7 @@ typedef struct _key_pair_t {
 *
 ** Parameters:
 *  	@param key_given - structure that has the semaphore list that needs
-*													to be deleted.
+*					   to be deleted.
 *
 ** Return:
 *		This function returns nothing.
@@ -71,7 +71,7 @@ void delete_sem_list(key_pair_t* key_given) {
 *
 ** Parameters:
 *  	@param key 	- string that identifies a specified key (which must 
-*									have a maximum size of MAX_KEY).
+*				  have a maximum size of MAX_KEY).
 *
 ** Return:
 *		On success: The function returns an unsiged integer that 
@@ -141,7 +141,7 @@ key_pair_t** create_hash_table() {
 *
 ** Parameters:
 *  	@param hash_table 	- pointer of the array that represents the
-*							hash table that stores the information.
+*						  hash table that stores the information.
 *
 ** Return:
 *		On success: SUCCESSFUL_OPERATION is returned. 
@@ -301,7 +301,8 @@ int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 *
 *		On error: 
 *		- NO_MEMORY_AVAILABLE if there's any error in the calloc function;
-*		- UNSUCCESSFUL_OPERATION if it cannot open semaphore
+*		- UNSUCCESSFUL_OPERATION is returned if there's any error related
+*		  to the sem_open() function.
 *
 ** Side-effects:
 *		This function has no side-effect.
@@ -352,12 +353,12 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 *		that the user of this function has.		
 *
 ** Parameters:
-*  	@param hash_table - pointer of an array that represents the
-*							hashtable used to store information;
-*	@param key - string that it's supposed t be stored and
-*					represents a certain value;
-*	@param value - string that wants to be stored and wants be 
-*						known by the user of this function.
+*  	@param hash_table 	- pointer of an array that represents the
+*						  hashtable used to store information;
+*	@param key 			- string that it's supposed t be stored and
+*						  represents a certain value;
+*	@param value 		- string that wants to be stored and wants be 
+*						  known by the user of this function.
 *
 ** Return:
 *		On success: SUCCESSFUL_OPERATION is returned if it was
@@ -411,10 +412,10 @@ int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
 *		the memory that's attached to it.		
 *
 ** Parameters:
-*  	@param hash_table - pointer of an array that represents the
-*							hashtable used to store information;
-*	@param key - string that it's supposed t be stored and
-*					represents a certain value.
+*  	@param hash_table 	- pointer of an array that represents the
+*						  hashtable used to store information;
+*	@param key		 	- string that it's supposed t be stored and
+*						  represents a certain value.
 *
 ** Return:
 *		On success: SUCCESSFUL_OPERATION is returned if it was
@@ -475,7 +476,7 @@ int delete_from_hash_table(key_pair_t** hash_table, char* key) {
 *
 ** Parameters:
 *  	@param hash_table - pointer of an array that represents the
-*							hashtable used to store information.
+*						hashtable used to store information.
 *
 ** Return:
 *		On success: The number of entries in the hash table is returned.

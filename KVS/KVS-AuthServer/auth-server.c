@@ -54,8 +54,6 @@ char* generate_secret() {
 	return key;
 }
 
-
-
 /*************************************************************************
 *
 ** void create_group(struct sockaddr_in* addr, char* group_id) 
@@ -65,7 +63,7 @@ char* generate_secret() {
 *		local_server via INET Datagram Socket.
 *
 ** Parameters:
-*  	@param addr - struct with the information of the inet socket;
+*  	@param addr 	- struct with the information of the inet socket;
 *  	@param group_id - string of the group that we want to create.
 *
 ** Return:
@@ -81,15 +79,22 @@ void create_group(struct sockaddr_in* addr, char* group_id) {
 
 	//verifies if the group
 	code = get_from_hash_table(groups, group_id, &secret);
+	if(code == NO_MEMORY_AVAILABLE){
+		secret = calloc(MAX_SECRET + 1 , sizeof(char));
+		secret[0] = '\0';
+	}
 
 	if(code == NONEXISTENT_KEY) {
 		secret = generate_secret();
-
-		put_on_hash_table(groups, group_id, secret);
+		code = put_on_hash_table(groups, group_id, secret);
+		if(code == NO_MEMORY_AVAILABLE){
+			secret[0] = '\0';
+		}
 	}
 
 	bytes = sendto(console_auth_server_socket, secret, MAX_SECRET + 1, MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
 	if(bytes != MAX_SECRET + 1) {
+		free(secret);
 		return;
 	}
 
@@ -97,7 +102,6 @@ void create_group(struct sockaddr_in* addr, char* group_id) {
 
 	return;
 }
-
 
 /*************************************************************************
 *
@@ -108,7 +112,7 @@ void create_group(struct sockaddr_in* addr, char* group_id) {
 *		this operation to the local_server via INET Datagram socket.
 *
 ** Parameters:
-*  	@param addr - struct with the information of the inet socket;
+*  	@param addr 	- struct with the information of the inet socket;
 *  	@param group_id - string of the group that we want to delete.
 *
 ** Return:
@@ -142,7 +146,7 @@ void delete_group(struct sockaddr_in* addr, char* group_id) {
 *		to the local_server via INET Datagram socket.
 *
 ** Parameters:
-*  	@param addr - struct with the information of the inet socket;
+*  	@param addr 	- struct with the information of the inet socket;
 *  	@param group_id - string of the group that we want to create.
 *
 ** Return:
@@ -178,7 +182,7 @@ void get_group_secret(struct sockaddr_in* addr, char* group_id) {
 *
 ** Parameters:
 *  	@param arg - not used, just labeled because of pthread 
-*					definition.
+*				 definition.
 *
 ** Return:
 *		This function doesn't return any information.
@@ -267,8 +271,6 @@ void apps_handler() {
 
 		pthread_rwlock_unlock(&groups_rwlock);
 
-		// handling auth_server thingys
-		// TODO check error codes
 		if(value) {
 			code = strcmp(group_auth_info.secret, value) == 0 ? 1 : -1;
 			free(value);
