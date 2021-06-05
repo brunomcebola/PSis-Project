@@ -17,6 +17,7 @@ typedef struct _callback_t {
 	void (*callback_function)(char*);
 	char name[MAX_NAME + 1];
 	char key[MAX_KEY + 1];
+	int active;
 	pthread_t thread;
 	sem_t* sem_id;
 	struct _callback_t* next;
@@ -49,60 +50,67 @@ pthread_t cb_socket_thread;
 *	
 *******************************************************************/
 void* callback_handler(void* callback_info) {
-	char response;
-
-	callback_t* k = (callback_t*)callback_info;
+	callback_t *self = NULL, *before = NULL;
 
 	while(sem_wait(((callback_t*)callback_info)->sem_id) >= 0) {
+		if(((callback_t*)callback_info)->active == 0) {
+			break;
+		}
 		(((callback_t*)callback_info)->callback_function)(((callback_t*)callback_info)->key);
 	}
+
+	self = callbacks_list;
+	before = callbacks_list;
+
+	while(self != NULL) {
+		if(strncmp(self->key, ((callback_t*)callback_info)->key, MAX_KEY) == 0) {
+			break;
+		}
+		before = self;
+		self = self->next;
+	}
+
+	if(before == self) {
+		callbacks_list = self->next;
+	} else {
+		before->next = self->next;
+	}
+
+	sem_close(self->sem_id);
+	sem_unlink(self->name);
+	free(self);
+
+	return NULL;
 }
 
-// bruno ainda está a fazer isto // TODO comentario
 void* callback_socket_handler(void* args) {
 	int bytes = 0;
 	char key[MAX_KEY + 1];
-	void* res;
-	callback_t *self = NULL, *before = NULL;
+	callback_t* self = NULL;
 
 	while(1) {
 		bytes = read(cb_socket, key, (MAX_KEY + 1) * sizeof(char));
-		if(bytes == (MAX_KEY + 1) * sizeof(char)) {
+		if(bytes != (MAX_KEY + 1) * sizeof(char)) {
 			// TODO
 		}
 
 		self = callbacks_list;
-		before = callbacks_list;
 
 		while(self != NULL) {
 			if(strncmp(self->key, key, MAX_KEY) == 0) {
 				break;
 			}
-			before = self;
 			self = self->next;
 		}
 
-		if(before == self) {
-			callbacks_list = self->next;
-		} else {
-			before->next = self->next;
+		if(self != NULL) {
+			self->active = 0;
+			sem_post(self->sem_id);
 		}
-
-		printf("\n\nBANANASSSS\n\n");
-
-		pthread_cancel(self->thread);
-
-		printf("\n\nCUCUCUCUCUCU\n\n");
-
-		sem_close(self->sem_id);
-		sem_unlink(self->name);
-		free(self);
-
-		pthread_join(self->thread, &res);
-
-		printf("\n\nOLAAAAA\n\n");
 	}
 }
+
+//
 
 /*******************************************************************
 *
@@ -343,7 +351,7 @@ int get_value(char* key, char** value) {
 
 	// letting the local_sever know that we are getting a value
 	bytes = write(app_socket, &type, sizeof(type));
-	if(bytes =! sizeof(type)) {
+	if(bytes = !sizeof(type)) {
 		return SENT_BROKEN_MESSAGE;
 	}
 
@@ -461,8 +469,8 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 			free(pid);
 
 			callback_info->callback_function = callback_function;
-
 			callback_info->sem_id = sem_open(callback_info->name, O_CREAT, 0600, 0);
+			callback_info->active = 1;
 
 			bytes = write(app_socket, &type, sizeof(type));
 			if(bytes != sizeof(type)) {
@@ -475,7 +483,7 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 			}
 
 			bytes = write(app_socket, callback_info->name, (MAX_NAME + 1) * sizeof(char));
-			if(bytes != (MAX_KEY + 1) * sizeof(char)) {
+			if(bytes != (MAX_NAME + 1) * sizeof(char)) {
 				return SENT_BROKEN_MESSAGE;
 			}
 
@@ -483,7 +491,6 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 			if(bytes != sizeof(int)) {
 				return RECEIVED_BROKEN_MESSAGE;
 			}
-
 
 			if(response == SUCCESSFUL_OPERATION) {
 				callback_info->next = callbacks_list;

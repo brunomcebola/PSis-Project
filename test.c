@@ -17,8 +17,8 @@ void my_function(char* key) {
 }
 
 int main() {
-	char *secret = "K8V8R6S1I6I2L9R2L0J6W4C0I2R0O6V0", *group_id = "hello";
-	char *nome1 = NULL, *nome2 = NULL, *nome3 = NULL, *nome4 = NULL;
+	char *secret = "E1O6E4X2W9Q1Q3E1X5J6O9R1K5Y4Q4R8", *group_id = "hello";
+	char* nome1 = NULL;
 
 	establish_connection(group_id, secret);
 

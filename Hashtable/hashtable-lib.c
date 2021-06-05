@@ -301,7 +301,6 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 		new_sem->next = key_pair->sem_head;
 
 		key_pair->sem_head = new_sem;
-
 	}
 	return SUCCESSFUL_OPERATION;
 }
@@ -385,6 +384,7 @@ void delete_sem_list(key_pair_t* key_given) {
 	sem_list_t* deleting_item = key_given->sem_head;
 
 	while(head != NULL) {
+		sem_post(head->sem_id);
 		head = head->next;
 		free(deleting_item);
 		deleting_item = head;

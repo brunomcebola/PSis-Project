@@ -55,7 +55,7 @@ void create_group_UI() {
 
 	} while(retype);
 
-	secret = create_group(group_id);
+  create_group(group_id, &secret);
 
 	print_success("\n🔑 Secret", secret);
 	printf("\n----\n");
