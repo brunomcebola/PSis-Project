@@ -129,8 +129,8 @@ void* callback_socket_handler(void* args) {
 ** Return:
 *		Returns WRONG_PARAM if the secret has more size than it should
 *		have, or if the size is 0. Returns UNABLE_TO_CONNECT if it can't
-*		connect to the local_server or to the callback socket. It returns
-*		CLOSE_CONNECTION if there's been an error in reading messages. It
+*		connect to the local_server or to the callback socket. if 
+*		there's been an error in reading messages. It
 *	 	returns SENT_BROKEN_MESSAGE or RECEIVED_BROKEN_MESSAGE if the
 *		size of the messages isn't equal to what was sent or received
 *
