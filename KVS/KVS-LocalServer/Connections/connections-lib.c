@@ -100,9 +100,6 @@ void close_connection(connection_t* connection, group_t* group, int list_critica
 *		If a write or a read from the socket is not successful then the 
 *		connection is terminated (both thread and socket get closed)
 *	
-//	TODO: check put_on_hash_table return code
-//	TODO: synchronization missing
-//  TODO: callback call
 *
 *******************************************************************/
 void put_value(connection_t* connection, group_t* group) {
@@ -170,12 +167,11 @@ void put_value(connection_t* connection, group_t* group) {
 *		If a write or a read from the socket is not successful then the 
 *		connection is terminated (both thread and socket get closed)
 *
-//	TODO: check get_from_hash_table assigned value if key nonexistent
-//	TODO: synchronization missing
 *	
 *******************************************************************/
 void get_value(connection_t* connection, group_t* group) {
 	int bytes = 0, len = 0;
+	int code = 0;
 	char *key = NULL, *value = NULL;
 
 	bytes = read(connection->socket, &len, sizeof(int));
@@ -193,7 +189,10 @@ void get_value(connection_t* connection, group_t* group) {
 		close_connection(connection, group, 0, 1);
 	}
 
-	get_from_hash_table(group->hash_table, key, &value);
+	code = get_from_hash_table(group->hash_table, key, &value);
+	if(code == NONEXISTENT_KEY){
+		close_connection(connection, group, 0, 1);
+	}
 
 	len = strlen(value) + 1;
 	bytes = write(connection->socket, &len, sizeof(int));
@@ -228,9 +227,6 @@ void get_value(connection_t* connection, group_t* group) {
 ** Side-effects:
 *		If a write or a read from the socket is not successful then the 
 *		connection is terminated (both thread and socket get closed)
-*	
-//	TODO: check delete_from_hash_table return code
-//	TODO: synchronization missing
 *
 *******************************************************************/
 void delete_value(connection_t* connection, group_t* group) {
@@ -309,8 +305,6 @@ void* connection_handler(void* connection) {
 	}
 
 	((connection_t*)connection)->pid = connection_info.pid;
-
-	// TODO falta sync de coms com auth server
 
 	// send informaton to auth server
 	bytes = sendto(apps_local_server_inet_socket,
@@ -486,7 +480,6 @@ void start_connections() {
 *
 ** Side-effects:
 *		There are no side-effects
-*		TODO: wrong commentary
 *******************************************************************/
 int setup_connections() {
 	// CONNECTIONS TO AUTH SERVER
