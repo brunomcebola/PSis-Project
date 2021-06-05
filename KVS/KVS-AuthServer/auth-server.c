@@ -265,8 +265,14 @@ void apps_handler() {
 		pthread_rwlock_unlock(&groups_rwlock);
 
 		// handling auth_server thingys
-		code = value ? strcmp(group_auth_info.secret, value) == 0 ? 1 : -1 : -2;
-		free(value);
+		// TODO check error codes
+		if(value) {
+			code = strcmp(group_auth_info.secret, value) == 0 ? 1 : -1;
+			free(value);
+		} else {
+			code = -2;
+		}
+
 		sendto(apps_auth_server_socket, &code, sizeof(int), MSG_CONFIRM, (struct sockaddr*)&local_server_addr, len);
 		// kinda irrelevant
 		if(bytes < 0) {

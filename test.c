@@ -17,8 +17,10 @@ void my_function(char* key) {
 }
 
 int main() {
-	char *secret = "S4Z5V8M8Y6Q3D3H7C0Z4M0M1X4M3A1N0", *group_id = "hello";
+	char *secret = "Q5E6A3A3I9B9W1I6M9R7E5W2P3I3E6H9", *group_id = "hello";
 	char* nome1 = NULL;
+
+	// TODO check return codes of KVS_Lib
 
 	establish_connection(group_id, secret);
 
@@ -63,6 +65,8 @@ int main() {
 	//
 
 	put_value("nome1", "André Silva");
+
+	getchar();
 
 	get_value("nome1", &nome1);
 

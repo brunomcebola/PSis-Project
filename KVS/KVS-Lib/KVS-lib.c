@@ -109,15 +109,23 @@ void* callback_socket_handler(void* args) {
 				sem_post(self->sem_id);
 			}
 		} else {
-			self = callbacks_list;
-
-			while(self != NULL) {
-				self->active = 0;
-				sem_post(self->sem_id);
-				self = self->next;
-			}
+			break;
 		}
 	}
+
+	self = callbacks_list;
+
+	while(self != NULL) {
+		self->active = 0;
+		sem_post(self->sem_id);
+		self = self->next;
+	}
+
+	close_connection();
+
+	printf("\n");
+	print_warning("The connection was terminated due to group deletion");
+	printf("\n");
 }
 
 //

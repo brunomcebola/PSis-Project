@@ -336,7 +336,7 @@ void get_value(connection_t* connection) {
 	}
 
 	code = get_from_hash_table(connection->group->hash_table, key, &value);
-	if(code == NONEXISTENT_KEY){
+	if(code == NONEXISTENT_KEY) {
 		// aqui temos que arranjar uma boa maneira para identificar que é erro
 		// bom truque '\n'
 		// TODO ver isto melhor
@@ -513,6 +513,11 @@ void* connection_handler(void* connection) {
 	pthread_rwlock_unlock(&group_list_rwlock);
 
 	while(1) {
+		bytes = read(((connection_t*)connection)->socket, &operation_type, sizeof(char));
+		if(bytes != sizeof(char)) {
+			close_connection((connection_t*)connection, NULL, 1, 0);
+		}
+
 		pthread_rwlock_rdlock(&group_list_rwlock);
 		group = groups_list;
 
@@ -529,10 +534,6 @@ void* connection_handler(void* connection) {
 			close_connection((connection_t*)connection, NULL, 1, 0);
 		}
 
-		bytes = read(((connection_t*)connection)->socket, &operation_type, sizeof(char));
-		if(bytes != sizeof(char)) {
-			close_connection((connection_t*)connection, NULL, 1, 0);
-		}
 		pthread_rwlock_rdlock(&group->rwlock);
 		pthread_rwlock_unlock(&group_list_rwlock);
 
@@ -926,6 +927,8 @@ int delete_group(char* group_id) {
 		}
 
 		free(group);
+
+		// TODO close connections
 
 	} else {
 		return NONEXISTENT_GROUP;
