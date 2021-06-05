@@ -194,44 +194,39 @@ int put_value(char* key, char* value) {
 	// letting the local_sever know that we are putting a value
 	bytes = write(app_socket, &type, sizeof(char));
 	if(bytes != sizeof(char)) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+		return SENT_BROKEN_MESSAGE;
 	}
 
 	// writing into the stream the key
 	len = strlen(key) + 1;
 	bytes = write(app_socket, &len, sizeof(int));
 	if(bytes != sizeof(int)) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+		return SENT_BROKEN_MESSAGE;
 	}
 
 	bytes = write(app_socket, key, len * sizeof(char));
 	if(bytes != len * sizeof(char)) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+		return SENT_BROKEN_MESSAGE;
 	}
 
 	// writing into the stream the value
 	len = strlen(value) + 1;
 	bytes = write(app_socket, &len, sizeof(int));
 	if(bytes != sizeof(int)) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+		return SENT_BROKEN_MESSAGE;
 	}
 
 	bytes = write(app_socket, value, len * sizeof(char));
 	if(bytes != len * sizeof(char)) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+		return SENT_BROKEN_MESSAGE;
 	}
 
 	bytes = read(app_socket, &response, sizeof(int));
 	if(bytes != sizeof(int)) {
-		perror("Error getting the reponse of the put");
+		return RECEIVED_BROKEN_MESSAGE;
 	}
 
-	return 1;
+	return SUCCESSFUL_OPERATION;
 }
 
 int get_value(char* key, char** value) {
@@ -241,37 +236,32 @@ int get_value(char* key, char** value) {
 	// letting the local_sever know that we are getting a value
 	bytes = write(app_socket, &type, sizeof(type));
 	if(bytes =! sizeof(type)) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+		return SENT_BROKEN_MESSAGE;
 	}
 
 	// writing into the stream the key
 	len = (strlen(key) + 1) * sizeof(char);
 	bytes = write(app_socket, &len, sizeof(int));
 	if(bytes != sizeof(int)) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+		return SENT_BROKEN_MESSAGE;
 	}
 	bytes = write(app_socket, key, len);
 	if(bytes != len) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+		return SENT_BROKEN_MESSAGE;
 	}
 
 	// writing into the stream the value
 	bytes = read(app_socket, &len, sizeof(int));
 	if(bytes != sizeof(int)) {
-		perror("Error reading the authentication side\n");
-		exit(-1); // arranjar erros
+		return RECEIVED_BROKEN_MESSAGE;
 	}
 	*value = calloc(len, sizeof(char));
 	bytes = read(app_socket, *value, len);
 	if(bytes != len) {
-		perror("Error reading the authentication side\n");
-		exit(-1); // arranjar erros
+		return RECEIVED_BROKEN_MESSAGE;
 	}
 
-	return 1;
+	return SUCCESSFUL_CONNECTION;
 }
 
 int delete_value(char* key) {
@@ -283,30 +273,27 @@ int delete_value(char* key) {
 	// letting the local_sever know that we are deleting a value
 	bytes = write(app_socket, &type, sizeof(type));
 	if(bytes != sizeof(type)) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+		return SENT_BROKEN_MESSAGE;
 	}
 
 	// deleting the value
 	len = strlen(key) + 1;
 	bytes = write(app_socket, &len, sizeof(int));
 	if(bytes != sizeof(int)) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+		return SENT_BROKEN_MESSAGE;
 	}
 
 	bytes = write(app_socket, key, len * sizeof(char));
 	if(bytes != len * sizeof(char)) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+		return SENT_BROKEN_MESSAGE;
 	}
 
 	bytes = read(app_socket, &response, sizeof(int));
 	if(bytes != sizeof(int)) {
-		perror("Error reading from the local server");
+		return RECEIVED_BROKEN_MESSAGE;
 	}
 
-	return 1;
+	return SUCCESSFUL_CONNECTION;
 }
 
 int register_callback(char* key, void (*callback_function)(char*)) {
@@ -344,7 +331,7 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 		if(aux == NULL) {
 			callback_info = calloc(1, sizeof(callback_t));
 			if(callback_info == NULL) {
-				// TODO
+				return UNSUCCESSFUL_OPERATION;
 			}
 
 			strncpy(callback_info->key, key, MAX_KEY);
@@ -363,26 +350,26 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 
 			bytes = write(app_socket, &type, sizeof(type));
 			if(bytes != sizeof(type)) {
-				// TODO
+				return SENT_BROKEN_MESSAGE;
 			}
 
 			bytes = write(app_socket, callback_info->key, (MAX_KEY + 1) * sizeof(char));
 			if(bytes != (MAX_KEY + 1) * sizeof(char)) {
-				// TODO
+				return SENT_BROKEN_MESSAGE;
 			}
 
 			bytes = write(app_socket, callback_info->name, (MAX_NAME + 1) * sizeof(char));
 			if(bytes != (MAX_KEY + 1) * sizeof(char)) {
-				// TODO
+				return SENT_BROKEN_MESSAGE;
 			}
 
 			bytes = read(app_socket, &response, sizeof(int));
 			if(bytes != sizeof(int)) {
-				// TODO
+				return RECEIVED_BROKEN_MESSAGE;
 			}
 
-			// TODO: response
-			if(1) {
+
+			if(response == SUCCESSFUL_OPERATION) {
 				callback_info->next = callbacks_list;
 				callbacks_list = callback_info;
 
