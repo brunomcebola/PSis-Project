@@ -16,6 +16,5 @@ int get_from_hash_table(key_pair_t** hash_table, char* key, char** value);
 int delete_from_hash_table(key_pair_t** hash_table, char* key);
 int get_number_of_entries(key_pair_t** hash_table);
 
-void printf_hash_table(key_pair_t** hash_table);
 
 #endif
