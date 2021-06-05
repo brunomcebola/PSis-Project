@@ -29,6 +29,25 @@ callback_t* callbacks_list = NULL;
 
 pthread_t cb_socket_thread;
 
+/*******************************************************************
+*
+** void* callback_handler(void* callback_info)
+*
+** Description:
+*		This function waits for the value to be updated and calls the
+*		callback function given by the app.
+*
+** Parameters:
+*  	@param callback_info - structure  that has all the information about
+*							the callback function
+*
+** Return:
+*		Nothing is returned by the function.
+*
+** Side-effects:
+*		This function has no side-effect
+*	
+*******************************************************************/
 void* callback_handler(void* callback_info) {
 	char response;
 
@@ -46,6 +65,7 @@ void* callback_handler(void* callback_info) {
 	pthread_exit(NULL);
 }
 
+// bruno ainda está a fazer isto // TODO comentario
 void* callback_socket_handler(void* args) {
 	int bytes = 0;
 	char key[MAX_KEY + 1];
@@ -64,6 +84,32 @@ void* callback_socket_handler(void* args) {
 	}
 }
 
+/*******************************************************************
+*
+** int establish_connection(char* group_id, char* secret)
+*
+** Description:
+*		Sends all the data to the local server to send to the authentication
+*		sever to verify the groupd_id and secret. After this establishes
+*		the connection between the local server and the application by a 
+*		socket stream unix.
+*
+** Parameters:
+*  		@param group_id - string that identifies the group
+*  		@param secret - pointer of a string that specifies secret of a group
+*
+** Return:
+*		Returns WRONG_PARAM if the secret has more size than it should
+*		have, or if the size is 0. Returns UNABLE_TO_CONNECT if it can't
+*		connect to the local_server or to the callback socket. It returns
+*		CLOSE_CONNECTION if there's been an error in reading messages. It
+*	 	returns SENT_BROKEN_MESSAGE or RECEIVED_BROKEN_MESSAGE if the
+*		size of the messages isn't equal to what was sent or received
+*
+** Side-effects:
+*		This function has no side-effect
+*	
+*******************************************************************/
 int establish_connection(char* group_id, char* secret) {
 	int bytes = 0;
 	int response = 0;
@@ -152,7 +198,7 @@ int establish_connection(char* group_id, char* secret) {
 
 		// saber se consegui conectar
 		bytes = read(app_socket, &response, sizeof(int));
-		if(bytes != sizeof(int)) {
+		if(bytes == -1) {
 			close(app_socket);
 			app_socket = -1;
 			print_error("Local server closed the connection");
@@ -180,6 +226,28 @@ int establish_connection(char* group_id, char* secret) {
 	}
 }
 
+/*******************************************************************
+*
+** int put_value(char* key, char* value)
+*
+** Description:
+*		Sends the group_id and the secret to the local server so it
+*		can be stored.
+*
+** Parameters:
+*  		@param key - string that identifies the key
+*  		@param value -  string that specifies the value of a key
+*
+** Return:
+*		It returns SENT_BROKEN_MESSAGE or RECEIVED_BROKEN_MESSAGE if the
+*		size of the messages isn't equal to what was sent or received.
+*		It returns SUCCESSFULL_OPERATION if it was possible to send
+*		all the necessary data to the local server.
+*
+** Side-effects:
+*		This function has no side-effect
+*	
+*******************************************************************/
 int put_value(char* key, char* value) {
 	char type = PUT;
 	int bytes = 0;
@@ -229,6 +297,26 @@ int put_value(char* key, char* value) {
 	return SUCCESSFUL_OPERATION;
 }
 
+/*******************************************************************
+*
+** int get_value(char* secret, char** value)
+*
+** Description:
+*		Sends the group_id and expects the local server to store the
+*		memory and copy the value in the char** value.
+*
+** Parameters:
+*  		@param key - string that identifies the key
+*  		@param value - pointer of a string that specifies value of a key
+*
+** Return:
+*		It returns SENT_BROKEN_MESSAGE or RECEIVED_BROKEN_MESSAGE if the
+*		size of the messages isn't equal to what was sent or received
+*
+** Side-effects:
+*		This function has no side-effect
+*	
+*******************************************************************/
 int get_value(char* key, char** value) {
 	int bytes = 0, len = 0;
 	char type = GET;
