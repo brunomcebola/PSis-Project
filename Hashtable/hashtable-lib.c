@@ -368,9 +368,6 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
 	key_pair_t* key_pair;
 
-	// return 1 if it exists
-	// return 0 if it doesnt exist
-
 	int hash_position = hash(key);
 	key_pair = hash_table[hash_position];
 	if(key_pair == NULL) {

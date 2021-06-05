@@ -39,6 +39,7 @@ connection_t* connections_list = NULL;
 group_t* groups_list = NULL;
 pthread_t listening_thread;
 pthread_rwlock_t group_list_rwlock; // TODO dar destroy na consola
+pthread_mutex_t authentication_mutex;
 
 int local_server_unix_socket = -1;
 int cb_local_server_unix_socket = -1;
@@ -108,6 +109,10 @@ int setup_connections() {
 
 	// inicializing the rwlock for the console data sharing
 	if(pthread_rwlock_init(&group_list_rwlock, NULL) != 0) {
+		return UNSUCCESSFUL_OPERATION;
+	}
+	// inicializing the mutex for communication with the authentication server
+	if(pthread_mutex_init(&authentication_mutex, NULL) != 0) {
 		return UNSUCCESSFUL_OPERATION;
 	}
 
@@ -331,7 +336,9 @@ void get_value(connection_t* connection) {
 	}
 
 	code = get_from_hash_table(connection->group->hash_table, key, &value);
-	if(code == NONEXISTENT_KEY) {
+	if(code == NONEXISTENT_KEY){
+		// aqui temos que arranjar uma boa maneira para identificar que é erro
+		// bom truque '\n'
 		// TODO ver isto melhor
 		close_connection(connection, connection->group, 0, 1);
 	}
@@ -441,6 +448,7 @@ void* connection_handler(void* connection) {
 	connection_packet connection_info;
 
 	// receive info from app
+	pthread_mutex_lock(&authentication_mutex);
 	bytes = read(((connection_t*)connection)->socket, &connection_info, sizeof(connection_packet));
 	if(bytes != sizeof(connection_packet)) {
 		close_connection((connection_t*)connection, NULL, 0, 0);
@@ -472,6 +480,7 @@ void* connection_handler(void* connection) {
 	}
 
 	pthread_rwlock_wrlock(&group_list_rwlock);
+	pthread_mutex_unlock(&authentication_mutex);
 
 	group = groups_list;
 
