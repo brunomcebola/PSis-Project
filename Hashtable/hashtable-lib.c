@@ -98,6 +98,41 @@ void printf_hash_table(key_pair_t** hash_table) {
 	}
 }
 
+// TODO verificar se é utilizado
+/*******************************************************************
+*
+**int delete_sem_list() 
+*
+** Description:
+*		Deletes all the informations about the list of semaphores 
+*
+** Parameters:
+*  		@param key_given - is the struct that holds all the important
+*						information, and it's the struct that wants
+*						to be deleted, by being the parameter instead
+*						of the key, it's not needed to do the search
+*						making it faster. 
+*
+** Return:
+*		This function returns nothing
+*
+** Side-effects:
+*		There's no side-effect 
+*******************************************************************/
+void delete_sem_list(key_pair_t* key_given) {
+	sem_list_t* head = key_given->sem_head;
+	sem_list_t* deleting_item = key_given->sem_head;
+
+	while(head != NULL) {
+		sem_post(head->sem_id);
+		head = head->next;
+		free(deleting_item);
+		deleting_item = head;
+	}
+
+	return;
+}
+
 /*******************************************************************
 *
 **key_pair_t** create_hash_table() 
@@ -162,6 +197,7 @@ void destroy_hash_table(key_pair_t** hash_table) {
 
 				free(key_pair_aux->key);
 				free(key_pair_aux->value);
+				delete_sem_list(key_pair_aux);
 				free(key_pair_aux);
 			}
 		}
@@ -358,41 +394,6 @@ int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
 	return NONEXISTENT_KEY;
 }
 
-// TODO verificar se é utilizado
-/*******************************************************************
-*
-**int delete_sem_list() 
-*
-** Description:
-*		Deletes all the informations about the list of semaphores 
-*
-** Parameters:
-*  		@param key_given - is the struct that holds all the important
-*						information, and it's the struct that wants
-*						to be deleted, by being the parameter instead
-*						of the key, it's not needed to do the search
-*						making it faster. 
-*
-** Return:
-*		This function returns nothing
-*
-** Side-effects:
-*		There's no side-effect 
-*******************************************************************/
-void delete_sem_list(key_pair_t* key_given) {
-	sem_list_t* head = key_given->sem_head;
-	sem_list_t* deleting_item = key_given->sem_head;
-
-	while(head != NULL) {
-		sem_post(head->sem_id);
-		head = head->next;
-		free(deleting_item);
-		deleting_item = head;
-	}
-
-	return;
-}
-
 /*******************************************************************
 *
 **int delete_from_hash_table() 
@@ -425,8 +426,6 @@ int delete_from_hash_table(key_pair_t** hash_table, char* key) {
 	int hash_position = hash(key);
 	key_pair = hash_table[hash_position];
 	if(key_pair == NULL) {
-		// putting the value on the hash tabble
-		printf("Key %s doesn't exist", key);
 		return WRONG_KEY;
 	}
 	// searching for the key

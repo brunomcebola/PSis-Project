@@ -55,7 +55,7 @@ void create_group_UI() {
 
 	} while(retype);
 
-  create_group(group_id, &secret);
+	create_group(group_id, &secret);
 
 	print_success("\n🔑 Secret", secret);
 	printf("\n----\n");
@@ -111,7 +111,7 @@ void delete_group_UI() {
 
 	response = delete_group(group_id);
 
-	if(response == 1) {
+	if(response == SUCCESSFUL_OPERATION) {
 		print_success("Deleted group", group_id);
 	} else {
 		print_error("It was not possible to delete this group");
@@ -147,6 +147,7 @@ void group_info_UI() {
 	int num_pairs = 0;
 	size_t size = 0;
 	int retype = 0;
+	int code = 0;
 
 	print_title("SHOW GROUP INFO");
 
@@ -167,10 +168,15 @@ void group_info_UI() {
 
 	} while(retype);
 
-	group_info(group_id, &secret, &num_pairs);
+	code = group_info(group_id, &secret, &num_pairs);
 
-	print_success("Secret", secret);
-	print_success("Number of key/pair values", int2str(num_pairs));
+	if(code != NONEXISTENT_GROUP) {
+		print_success("Secret", secret);
+		print_success("Number of key/pair values", int2str(num_pairs));
+	} else {
+		print_warning("The specified group does not exist");
+	}
+
 	printf("\n----\n");
 
 	free(group_id);

@@ -94,18 +94,28 @@ void* callback_socket_handler(void* args) {
 			// TODO
 		}
 
-		self = callbacks_list;
+		if(strlen(key) != 0) {
+			self = callbacks_list;
 
-		while(self != NULL) {
-			if(strncmp(self->key, key, MAX_KEY) == 0) {
-				break;
+			while(self != NULL) {
+				if(strncmp(self->key, key, MAX_KEY) == 0) {
+					break;
+				}
+				self = self->next;
 			}
-			self = self->next;
-		}
 
-		if(self != NULL) {
-			self->active = 0;
-			sem_post(self->sem_id);
+			if(self != NULL) {
+				self->active = 0;
+				sem_post(self->sem_id);
+			}
+		} else {
+			self = callbacks_list;
+
+			while(self != NULL) {
+				self->active = 0;
+				sem_post(self->sem_id);
+				self = self->next;
+			}
 		}
 	}
 }

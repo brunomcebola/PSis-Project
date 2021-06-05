@@ -331,7 +331,7 @@ void get_value(connection_t* connection) {
 	}
 
 	code = get_from_hash_table(connection->group->hash_table, key, &value);
-	if(code == NONEXISTENT_KEY){
+	if(code == NONEXISTENT_KEY) {
 		// TODO ver isto melhor
 		close_connection(connection, connection->group, 0, 1);
 	}
@@ -606,7 +606,6 @@ void start_connections() {
 
 // console handling functions
 
-
 /*******************************************************************
 * 
 ** int group_info(char* group_id, char** secret, int* num_pairs) 
@@ -756,7 +755,6 @@ int create_group(char* group_id, char** secret) {
 		return RECEIVED_BROKEN_MESSAGE;
 	}
 
-
 	if(group == NULL) {
 		group = calloc(1, sizeof(group_t));
 
@@ -781,7 +779,6 @@ int create_group(char* group_id, char** secret) {
 
 	return SUCCESSFUL_OPERATION;
 }
-
 
 /*******************************************************************
 * 
@@ -813,7 +810,7 @@ void app_status() {
 		printf("No app has connected so far\n\n");
 	} else {
 		while(connection != NULL) {
-			print_success("PID", buffer	);
+			print_success("PID", buffer);
 			print_success("Connection establishing time", connection->open_time);
 			print_success("Connection close time", connection->close_time);
 			printf("\n");
@@ -854,6 +851,8 @@ int delete_group(char* group_id) {
 	int len = sizeof(struct sockaddr_in);
 	operation_packet operation;
 	char response;
+	connection_t* aux = connections_list;
+	char key[MAX_KEY + 1] = "\0";
 
 	pthread_rwlock_wrlock(&group_list_rwlock);
 
@@ -889,7 +888,7 @@ int delete_group(char* group_id) {
 		if(bytes != sizeof(int)) {
 			return RECEIVED_BROKEN_MESSAGE;
 		}
-		if(response == WRONG_KEY){
+		if(response == WRONG_KEY) {
 			return NONEXISTENT_GROUP;
 		}
 
@@ -902,13 +901,24 @@ int delete_group(char* group_id) {
 
 		pthread_rwlock_unlock(&group_list_rwlock);
 
-		pthread_rwlock_destroy(&group->rwlock);
+		pthread_rwlock_destroy(&(group->rwlock));
 		destroy_hash_table(group->hash_table);
 		free(group->hash_table);
+
+		while(aux != NULL) {
+			if(aux->group == group) {
+				bytes = write(aux->cb_socket, key, (MAX_KEY + 1) * sizeof(char));
+				if(bytes != (MAX_KEY + 1) * sizeof(char)) {
+					// TODO
+				}
+			}
+
+			aux = aux->next;
+		}
+
 		free(group);
 
-	} 
-	else {
+	} else {
 		return NONEXISTENT_GROUP;
 	}
 
