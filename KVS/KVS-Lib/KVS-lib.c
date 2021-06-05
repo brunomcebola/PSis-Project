@@ -35,33 +35,53 @@ void* callback_handler(void* callback_info) {
 
 	callback_t* k = (callback_t*)callback_info;
 
-	printf("\n%s\n", ((callback_t*)callback_info)->name);
-
 	while(sem_wait(((callback_t*)callback_info)->sem_id) >= 0) {
 		(((callback_t*)callback_info)->callback_function)(((callback_t*)callback_info)->key);
 	}
-
-	sem_close(((callback_t*)callback_info)->sem_id);
-	sem_unlink(((callback_t*)callback_info)->name);
-
-	pthread_exit(NULL);
 }
 
 void* callback_socket_handler(void* args) {
 	int bytes = 0;
 	char key[MAX_KEY + 1];
-	callback_t* aux = callbacks_list;
+	void* res;
+	callback_t *self = NULL, *before = NULL;
 
 	while(1) {
-		bytes = read(cb_socket, key, MAX_KEY + 1);
-		if(bytes == -1) {
+		bytes = read(cb_socket, key, (MAX_KEY + 1) * sizeof(char));
+		if(bytes == (MAX_KEY + 1) * sizeof(char)) {
 			// TODO
 		}
 
-		while(1) {
+		self = callbacks_list;
+		before = callbacks_list;
+
+		while(self != NULL) {
+			if(strncmp(self->key, key, MAX_KEY) == 0) {
+				break;
+			}
+			before = self;
+			self = self->next;
 		}
 
-		//pthread_cancel();
+		if(before == self) {
+			callbacks_list = self->next;
+		} else {
+			before->next = self->next;
+		}
+
+		printf("\n\nBANANASSSS\n\n");
+
+		pthread_cancel(self->thread);
+
+		printf("\n\nCUCUCUCUCUCU\n\n");
+
+		sem_close(self->sem_id);
+		sem_unlink(self->name);
+		free(self);
+
+		pthread_join(self->thread, &res);
+
+		printf("\n\nOLAAAAA\n\n");
 	}
 }
 
@@ -280,33 +300,38 @@ int get_value(char* key, char** value) {
 int delete_value(char* key) {
 	char type = DEL;
 	int bytes = 0;
-	int len = 0;
 	int response = -1;
+	char s_key[MAX_KEY + 1];
 
-	// letting the local_sever know that we are deleting a value
-	bytes = write(app_socket, &type, sizeof(type));
-	if(bytes == 0) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+	// verifies if the group id has more than MAX_GROUP_ID chars
+	if(strlen(key) > MAX_KEY) {
+		print_error("The key can have a max of " STR(MAX_KEY) " chars");
+		return WRONG_PARAM;
 	}
-
-	// deleting the value
-	len = strlen(key) + 1;
-	bytes = write(app_socket, &len, sizeof(int));
-	if(bytes == 0) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
+	// verifies if a group id is specified
+	else if(strlen(key) == 0) {
+		print_error("No key was specified");
+		return WRONG_PARAM;
 	}
+	// verifies if a callback function is specified
+	else {
+		strncpy(s_key, key, MAX_KEY);
 
-	bytes = write(app_socket, key, len * sizeof(char));
-	if(bytes == 0) {
-		perror("Error write the secret in the application");
-		exit(-1); // arranjar erros
-	}
+		// letting the local_sever know that we are deleting a value
+		bytes = write(app_socket, &type, sizeof(char));
+		if(bytes != sizeof(char)) {
+			// TODO
+		}
 
-	bytes = read(app_socket, &response, sizeof(int));
-	if(bytes == -1) {
-		perror("Error reading from the local server");
+		bytes = write(app_socket, s_key, (MAX_KEY + 1) * sizeof(char));
+		if(bytes != (MAX_KEY + 1) * sizeof(char)) {
+			// TODO
+		}
+
+		bytes = read(app_socket, &response, sizeof(int));
+		if(bytes != sizeof(int)) {
+			// TODO
+		}
 	}
 
 	return 1;

@@ -361,6 +361,7 @@ int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
 	return NONEXISTENT_KEY;
 }
 
+// TODO verificar se é utilizado
 /*******************************************************************
 *
 **int delete_sem_list() 

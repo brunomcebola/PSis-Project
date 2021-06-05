@@ -17,7 +17,7 @@ void my_function(char* key) {
 }
 
 int main() {
-	char *secret = "X4C7M4B8T1I7W8L2G2E9I0H5M7C7M8O9", *group_id = "hello";
+	char *secret = "K8V8R6S1I6I2L9R2L0J6W4C0I2R0O6V0", *group_id = "hello";
 	char *nome1 = NULL, *nome2 = NULL, *nome3 = NULL, *nome4 = NULL;
 
 	establish_connection(group_id, secret);
@@ -28,7 +28,7 @@ int main() {
 
 	printf("Nome1: %s\n", nome1);
 
-	//register_callback("nome1", my_function);
+	register_callback("nome1", my_function);
 
 	//
 
