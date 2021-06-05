@@ -130,32 +130,47 @@ void* callback_socket_handler(void* args) {
 
 //
 
-/*******************************************************************
+/*********************************************************************
 *
 ** int establish_connection(char* group_id, char* secret)
 *
 ** Description:
-*		Sends all the data to the local server to send to the authentication
-*		sever to verify the groupd_id and secret. After this establishes
-*		the connection between the local server and the application by a 
-*		socket stream unix.
+*		Sends a connection_packet to the local server for it to redirect
+*		to the authentication server, in order to grant access for the 
+*		requesting application to manipulate a specified group (one of the
+*		paramenters of the connection_packet). If the sent credentials are
+*		correct then a connection is established. Otherwise, an error is
+*		returned.		
 *
 ** Parameters:
-*  		@param group_id - string that identifies the group
-*  		@param secret - pointer of a string that specifies secret of a group
+*  	@param group_id - string that identifies the group id (which must
+*											have a maximum size of MAX_GROUP_ID)
+*  	@param secret 	- string that specifies the secret of the group
+*											(which must have a maximum size of MAX_KEY)
 *
 ** Return:
-*		Returns WRONG_PARAM if the secret has more size than it should
-*		have, or if the size is 0. Returns UNABLE_TO_CONNECT if it can't
-*		connect to the local_server or to the callback socket. if 
-*		there's been an error in reading messages. It
-*	 	returns SENT_BROKEN_MESSAGE or RECEIVED_BROKEN_MESSAGE if the
-*		size of the messages isn't equal to what was sent or received
+*		On success: SUCCESSFUL_OPERATION is returned. 
+*
+*		On error: 
+*		- WRONG_PARAM is returned if either the secret or the  group_id 
+*			does not have the correct size; 
+*		- UNABLE_TO_CONNECT is return if either the connection to main 
+*			socket or to the callback socket is not successful; 
+*		- CLOSED_CONNECTION is returned if the local server closes the
+* 		connection;
+*		- SENT_BROKEN_MESSAGE is return if there is a problem sending the 
+*			connection_packet to the local server; 
+*		- RECEIVED_BROKEN_MESSAGE is return if there is a problem reading
+*			the response from the local server;
+*		-	NONEXISTENT_GROUP is returned if the the provided group_id does
+*			not match with any id of the groups on the local server;
+*		-	WRONG_SECRET is returned if the provided secret does not match
+*     with the one associated to the group with the provided group_id;
 *
 ** Side-effects:
-*		This function has no side-effect
+*		This function has no side-effect.
 *	
-*******************************************************************/
+*********************************************************************/
 int establish_connection(char* group_id, char* secret) {
 	int bytes = 0;
 	int response = 0;
@@ -198,9 +213,8 @@ int establish_connection(char* group_id, char* secret) {
 
 		cb_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 		if(cb_socket == -1) {
-			close(app_socket);
-			app_socket = -1;
-			print_error("Unable to create socket");
+			print_error("Unable to create callback socket");
+			close_connection();
 			return UNABLE_TO_CONNECT;
 		}
 
@@ -212,21 +226,15 @@ int establish_connection(char* group_id, char* secret) {
 
 		err = connect(app_socket, (struct sockaddr*)&local_server_addr, sizeof(struct sockaddr_un));
 		if(err == -1) {
-			close(app_socket);
-			app_socket = -1;
-			close(cb_socket);
-			cb_socket = -1;
 			print_error("Unable to connect to local server");
+			close_connection();
 			return UNABLE_TO_CONNECT;
 		}
 
 		err = connect(cb_socket, (struct sockaddr*)&cb_local_server_addr, sizeof(struct sockaddr_un));
 		if(err == -1) {
-			close(app_socket);
-			app_socket = -1;
-			close(cb_socket);
-			cb_socket = -1;
-			print_error("Unable to connect to local server");
+			print_error("Unable to connect to local server callback");
+			close_connection();
 			return UNABLE_TO_CONNECT;
 		}
 
@@ -236,39 +244,38 @@ int establish_connection(char* group_id, char* secret) {
 
 		bytes = write(app_socket, &connection_info, sizeof(connection_packet));
 		if(bytes != sizeof(connection_packet)) {
-			close(app_socket);
-			app_socket = -1;
 			print_error("Broken message sent to local server");
+			close_connection();
 			return SENT_BROKEN_MESSAGE;
 		}
 
 		// saber se consegui conectar
 		bytes = read(app_socket, &response, sizeof(int));
-		if(bytes == -1) {
-			close(app_socket);
-			app_socket = -1;
+		if(bytes == 0) {
 			print_error("Local server closed the connection");
+			close_connection();
 			return CLOSED_CONNECTION;
 		} else if(bytes != sizeof(int)) {
-			close(app_socket);
-			app_socket = -1;
 			print_error("Broken message received from local server");
+			close_connection();
 			return RECEIVED_BROKEN_MESSAGE;
 		}
 
 		if(response == WRONG_SECRET) {
-			close(app_socket);
-			app_socket = -1;
-			print_error("Wrong secret");
+			print_error("The specified secret doesn't match with the one associated to the group");
+			close_connection();
+
+			return WRONG_SECRET;
 		} else if(response == NONEXISTENT_GROUP) {
-			close(app_socket);
-			app_socket = -1;
 			print_error("The specified group doesn't exist");
+			close_connection();
+
+			return NONEXISTENT_GROUP;
+		} else {
+			pthread_create(&cb_socket_thread, NULL, callback_socket_handler, NULL);
+
+			return SUCCESSFUL_OPERATION;
 		}
-
-		pthread_create(&cb_socket_thread, NULL, callback_socket_handler, NULL);
-
-		return response;
 	}
 }
 
@@ -301,42 +308,53 @@ int put_value(char* key, char* value) {
 	int response = 0;
 
 	if(app_socket == -1) {
-		printf("You have not establish connection to the local_server yet\n");
-		return -1; // arranjar erros
+		return UNABLE_TO_CONNECT;
 	}
 
 	// letting the local_sever know that we are putting a value
 	bytes = write(app_socket, &type, sizeof(char));
-	if(bytes != sizeof(char)) {
+	if(bytes == 0) {
+		return CLOSED_CONNECTION;
+	} else if(bytes != sizeof(char)) {
 		return SENT_BROKEN_MESSAGE;
 	}
 
 	// writing into the stream the key
 	len = strlen(key) + 1;
 	bytes = write(app_socket, &len, sizeof(int));
-	if(bytes != sizeof(int)) {
+	if(bytes == 0) {
+		return CLOSED_CONNECTION;
+	} else if(bytes != sizeof(int)) {
 		return SENT_BROKEN_MESSAGE;
 	}
 
 	bytes = write(app_socket, key, len * sizeof(char));
-	if(bytes != len * sizeof(char)) {
+	if(bytes == 0) {
+		return CLOSED_CONNECTION;
+	} else if(bytes != len * sizeof(char)) {
 		return SENT_BROKEN_MESSAGE;
 	}
 
 	// writing into the stream the value
 	len = strlen(value) + 1;
 	bytes = write(app_socket, &len, sizeof(int));
-	if(bytes != sizeof(int)) {
+	if(bytes == 0) {
+		return CLOSED_CONNECTION;
+	} else if(bytes != sizeof(int)) {
 		return SENT_BROKEN_MESSAGE;
 	}
 
 	bytes = write(app_socket, value, len * sizeof(char));
-	if(bytes != len * sizeof(char)) {
+	if(bytes == 0) {
+		return CLOSED_CONNECTION;
+	} else if(bytes != len * sizeof(char)) {
 		return SENT_BROKEN_MESSAGE;
 	}
 
 	bytes = read(app_socket, &response, sizeof(int));
-	if(bytes != sizeof(int)) {
+	if(bytes == 0) {
+		return CLOSED_CONNECTION;
+	} else if(bytes != sizeof(int)) {
 		return RECEIVED_BROKEN_MESSAGE;
 	}
 
@@ -535,11 +553,42 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 	}
 }
 
+/*******************************************************************
+*
+** int close_connection()
+*
+** Description:
+*		Closes all the communication channels between the app and the
+*		local server.
+*
+** Parameters:
+*  	This function takes no parameters.
+*
+** Return:
+*		On success: SUCCESSFUL_OPERATION is returned. 
+*
+*		On error: UNSUCCESSFUL_OPERATION.
+*
+** Side-effects:
+*		This function has no side-effect.
+*	
+*******************************************************************/
 int close_connection() {
-	close(app_socket);
-	app_socket = -1;
-	close(cb_socket);
-	cb_socket = -1;
+	if(app_socket != -1) {
+		if(close(app_socket) == -1) {
+			print_error("Unable to close main socket");
+			return UNSUCCESSFUL_OPERATION;
+		}
+		app_socket = -1;
+	}
 
-	return 1;
+	if(cb_socket != -1) {
+		if(close(cb_socket) == -1) {
+			print_error("Unable to close calllback socket");
+			return UNSUCCESSFUL_OPERATION;
+		}
+		cb_socket = -1;
+	}
+
+	return SUCCESSFUL_OPERATION;
 }

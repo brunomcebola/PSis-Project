@@ -17,6 +17,11 @@ void my_function(char* key) {
 }
 
 int main() {
+	int app_socket = -1;
+	int err = close(app_socket);
+
+	return 0;
+
 	char *secret = "Q5E6A3A3I9B9W1I6M9R7E5W2P3I3E6H9", *group_id = "hello";
 	char* nome1 = NULL;
 

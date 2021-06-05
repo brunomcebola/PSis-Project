@@ -70,8 +70,8 @@ typedef struct {
 #define WRONG_KEY -10
 #define NONEXISTENT_KEY -11
 
-#define SUCCESSFUL_CONNECTION 1
-#define SUCCESSFUL_OPERATION 2
+#define SUCCESSFUL_OPERATION 1
+#define SUCCESSFUL_CONNECTION 2
 #define CREATED 3
 #define UPDATE 4
 

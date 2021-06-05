@@ -98,7 +98,6 @@ void printf_hash_table(key_pair_t** hash_table) {
 	}
 }
 
-// TODO verificar se é utilizado
 /*******************************************************************
 *
 **int delete_sem_list() 

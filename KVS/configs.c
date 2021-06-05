@@ -42,7 +42,7 @@ void print_title(char* title) {
 *		There's no side-effect 
 *******************************************************************/
 void print_error(char* error) {
-	printf(ANSI_RED "\n\nError: " ANSI_RESET "%s!\n\n", error);
+	printf(ANSI_RED "\nError: " ANSI_RESET "%s!\n", error);
 
 	return;
 }
@@ -65,7 +65,7 @@ void print_error(char* error) {
 *
 *******************************************************************/
 void print_warning(char* warning) {
-	printf(ANSI_YELLOW "Warning: " ANSI_RESET "%s!", warning);
+	printf(ANSI_YELLOW "\nWarning: " ANSI_RESET "%s!\n", warning);
 
 	return;
 }
