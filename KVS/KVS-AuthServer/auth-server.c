@@ -323,22 +323,30 @@ int setup_server() {
 
 	// sockets creation
 	if((apps_auth_server_socket = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
+		printf("\n\n");
 		print_error("Unable to create the application socket");
+		printf("\n\n");
 		return UNABLE_TO_CONNECT;
 	}
 
 	if((console_auth_server_socket = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
+		printf("\n\n");
 		print_error("Unable to create the console socket");
+		printf("\n\n");
 		return UNABLE_TO_CONNECT;
 	}
 
 	// "unlink" inet sockets
 	if(setsockopt(apps_auth_server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+		printf("\n\n");
 		print_error("Unable to connect to the application socket");
+		printf("\n\n");
 		return UNABLE_TO_CONNECT;
 	}
 	if(setsockopt(console_auth_server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+		printf("\n\n");
 		print_error("Unable to connect to the console socket");
+		printf("\n\n");
 		return UNABLE_TO_CONNECT;
 	}
 
@@ -357,11 +365,15 @@ int setup_server() {
 
 	// bind the socket
 	if(bind(apps_auth_server_socket, (struct sockaddr*)&apps_auth_server_addr, sizeof(struct sockaddr_in)) < 0) {
+		printf("\n\n");
 		print_error("Unable to connect to the application socket");
+		printf("\n\n");
 		return UNABLE_TO_CONNECT;
 	}
 	if(bind(console_auth_server_socket, (struct sockaddr*)&console_auth_server_addr, sizeof(struct sockaddr_in)) < 0) {
+		printf("\n\n");
 		print_error("Unable to connect to the console socket");
+		printf("\n\n");
 		return UNABLE_TO_CONNECT;
 	}
 

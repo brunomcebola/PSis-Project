@@ -456,7 +456,7 @@ void* connection_handler(void* connection) {
 	while(1) {
 		bytes = read(((connection_t*)connection)->socket, &operation_type, sizeof(char));
 		if(bytes != sizeof(char)) {
-			close_connection((connection_t*)connection, 1, 0);
+			close_connection((connection_t*)connection, 0, 0);
 		}
 
 		pthread_rwlock_rdlock(&group_list_rwlock);
@@ -529,7 +529,9 @@ void* connections_listener(void* arg) {
 	while(1) {
 		connection = calloc(1, sizeof(connection_t));
 		if(connection == NULL) {
+			printf("\n\n");
 			print_error("Unable to create variable to store incoming connection info");
+			printf("\n\n");
 			break;
 		}
 
@@ -647,7 +649,9 @@ int setup_connections() {
 		close(console_local_server_inet_socket);
 		console_local_server_inet_socket = -1;
 		pthread_rwlock_destroy(&group_list_rwlock);
+		printf("\n\n");
 		print_error("Unable to initialize authentication mutex");
+		printf("\n\n");
 		return UNSUCCESSFUL_OPERATION;
 	}
 
@@ -662,7 +666,9 @@ int setup_connections() {
 		console_local_server_inet_socket = -1;
 		pthread_rwlock_destroy(&group_list_rwlock);
 		pthread_mutex_destroy(&authentication_mutex);
+		printf("\n\n");
 		print_error("Unable to create socket to connect to apps");
+		printf("\n\n");
 		return UNSUCCESSFUL_OPERATION;
 	}
 
@@ -677,7 +683,9 @@ int setup_connections() {
 		local_server_unix_socket = -1;
 		pthread_rwlock_destroy(&group_list_rwlock);
 		pthread_mutex_destroy(&authentication_mutex);
+		printf("\n\n");
 		print_error("Unable to create socket to connect to callbacks");
+		printf("\n\n");
 		return UNSUCCESSFUL_OPERATION;
 	}
 
@@ -692,7 +700,9 @@ int setup_connections() {
 		local_server_unix_socket = -1;
 		pthread_rwlock_destroy(&group_list_rwlock);
 		pthread_mutex_destroy(&authentication_mutex);
+		printf("\n\n");
 		print_error("Unable to unlick socket to connect to apps path");
+		printf("\n\n");
 		return UNSUCCESSFUL_OPERATION;
 	}
 
@@ -707,7 +717,9 @@ int setup_connections() {
 		local_server_unix_socket = -1;
 		pthread_rwlock_destroy(&group_list_rwlock);
 		pthread_mutex_destroy(&authentication_mutex);
+		printf("\n\n");
 		print_error("Unable to unlick socket to connect to callbacks path");
+		printf("\n\n");
 		return UNSUCCESSFUL_OPERATION;
 	}
 
@@ -723,7 +735,9 @@ int setup_connections() {
 		cb_local_server_unix_socket = -1;
 		pthread_rwlock_destroy(&group_list_rwlock);
 		pthread_mutex_destroy(&authentication_mutex);
+		printf("\n\n");
 		print_error("Unable to bind socket to connect to apps");
+		printf("\n\n");
 		return UNSUCCESSFUL_OPERATION;
 	}
 
@@ -739,7 +753,9 @@ int setup_connections() {
 		cb_local_server_unix_socket = -1;
 		pthread_rwlock_destroy(&group_list_rwlock);
 		pthread_mutex_destroy(&authentication_mutex);
+		printf("\n\n");
 		print_error("Unable to bind socket to connect to callbacks");
+		printf("\n\n");
 		return UNSUCCESSFUL_OPERATION;
 	}
 
@@ -986,20 +1002,25 @@ int create_group(char* group_id, char** secret) {
 *********************************************************************/
 void app_status() {
 	connection_t* connection = connections_list;
-	char* buffer = int2str(connection->pid);
+	char* buffer = NULL;
 
 	if(connection == NULL) {
-		printf("No app has connected so far\n\n");
+		print_warning("No app has connected so far");
+		printf("\n\n");
 	} else {
 		while(connection != NULL) {
+			buffer = int2str(connection->pid);
+			printf("\n\n");
 			print_success("PID", buffer);
+			printf("\n");
 			print_success("Connection establishing time", connection->open_time);
+			printf("\n");
 			print_success("Connection close time", connection->close_time);
 			printf("\n");
 			connection = connection->next;
+			free(buffer);
 		}
 	}
-	free(buffer);
 }
 
 /*********************************************************************

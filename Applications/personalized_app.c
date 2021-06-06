@@ -11,101 +11,123 @@
 
 #include "../KVS/KVS-Lib/KVS-lib.h"
 
-void* callback_function_by_us(char* key){
-    printf("Key %s modified", key);
+void callback_function_by_us(char* key) {
+	printf("\n\nKey %s modified\n\n", key);
 }
 
-void put_value_UI(){
-    char key[MAX_NAME +1];
-    char *value;
+void put_value_UI() {
+	char *key = NULL, *value = NULL;
+	size_t size = 0;
 
-    printf("-- Key:");
-    scanf(" %s", key);
-	getchar();
+	print_title("PUT VALUE");
 
-    printf("-- Value:");
-    // TODO : aqui tem que ser getline() right?
-    scanf(" %s", value);
-	getchar(); 
+	printf("-- Key: ");
+	getline(&key, &size, stdin);
+	key[strcspn(key, "\n")] = '\0';
+	size = 0;
 
-    put_value(key, value);
+	printf("-- Value: ");
+	getline(&value, &size, stdin);
+	value[strcspn(value, "\n")] = '\0';
+	size = 0;
+
+	printf("\n");
+	put_value(key, value);
+	printf("\n\n");
 }
 
-void get_value_UI(){
-    char key[MAX_NAME +1];
-    char *value;
+void get_value_UI() {
+	char *key = NULL, *value = NULL;
+	size_t size = 0;
 
-    printf("-- Key:");
-    scanf(" %s", key);
-	getchar();
+	print_title("GET VALUE");
 
-    get_value(key, &value);
+	printf("-- Key: ");
+	getline(&key, &size, stdin);
+	key[strcspn(key, "\n")] = '\0';
+	size = 0;
+
+	printf("\n");
+	get_value(key, &value);
+	printf("\n\n");
+
+	printf("Value: %s\n\n", value);
 }
 
-void delete_value_UI(){
-    char key[MAX_NAME +1];
+void delete_value_UI() {
+	char* key = NULL;
+	size_t size = 0;
 
-    printf("-- Key:");
-    scanf(" %s", key);
-	getchar();
+	print_title("GET VALUE");
 
-    delete_value(key);
+	printf("-- Key: ");
+	getline(&key, &size, stdin);
+	key[strcspn(key, "\n")] = '\0';
+	size = 0;
+
+	printf("\n");
+	delete_value(key);
+	printf("\n\n");
 }
 
-void register_callback_UI(){
-    char key[MAX_NAME +1];
+void register_callback_UI() {
+	char* key = NULL;
+	size_t size = 0;
 
-    printf("-- Key:");
-    scanf(" %s", key);
-	getchar();
+	print_title("REGISTER CALLBACK");
 
-    register_callback(key, callback_function_by_us(key) );
+	printf("-- Key: ");
+	getline(&key, &size, stdin);
+	key[strcspn(key, "\n")] = '\0';
+	size = 0;
+
+	printf("\n");
+	register_callback(key, callback_function_by_us);
+	printf("\n\n");
 }
 
+int main() {
+	int option = -1;
+	int code = -1;
+	char *group_id = NULL, *secret = NULL;
+	size_t size = 0;
 
-int main(){
-    int option = -1;
-    int code = -1;
-    char secret[MAX_SECRET+1];
-    char group_id[MAX_GROUP_ID +1];
-
-	printf("---------------------------------\n");
+	printf("-------------------------------------\n");
 	printf("------------ " ANSI_BOLD ANSI_CYAN "Application" ANSI_RESET " ------------\n");
-	printf("---------------------------------\n");
+	printf("-------------------------------------\n\n");
 
-    printf(ANSI_BOLD "\nLogin\n" ANSI_RESET);
-	printf("--\n");
-	printf("-- Group ID:");
-    scanf(" %s", group_id);
-	getchar();
+	print_title("Login");
 
+	do {
+		printf("-- Group ID: ");
+		getline(&group_id, &size, stdin);
+		group_id[strcspn(group_id, "\n")] = '\0';
+		size = 0;
 
-    printf("-- Group Secret:");
+		printf("-- Group Secret: ");
+		getline(&secret, &size, stdin);
+		secret[strcspn(secret, "\n")] = '\0';
+		size = 0;
 
-    scanf(" %s", secret);
-	getchar();
+		printf("\n");
+		code = establish_connection(group_id, secret);
+		printf("\n\n");
 
-    printf("Group -> %s \n",group_id);
-    printf("Secret -> %s \n",secret);
-    code = establish_connection(group_id, secret);
+		free(group_id);
+		free(secret);
 
-    if(code == SENT_BROKEN_MESSAGE || code == RECEIVED_BROKEN_MESSAGE){
-        printf("Message between application and local_server was corrupted\n");
-    }
-    if(code == UNABLE_TO_CONNECT){
-        printf("Server couldn't establish connection\n");
-    }
+	} while(code != SUCCESSFUL_OPERATION);
 
 	while(option != 5) {
 		option = -1;
 
-		printf(ANSI_BOLD "\nWhat do you want to do?\n" ANSI_RESET);
-		printf("--\n");
-		printf("-- 1) Insert value --------------\n");
-		printf("-- 2) Get value --------------\n");
-		printf("-- 3) Delete value -----------\n");
-		printf("-- 4) Register Callback of value ---\n");
-        printf("-- 5) Close Application ---\n");
+		printf(ANSI_BOLD "What do you want to do?\n\n" ANSI_RESET);
+
+		printf("-- 1) Insert value ------------------\n");
+		printf("-- 2) Get value ---------------------\n");
+		printf("-- 3) Delete value ------------------\n");
+		printf("-- 4) Register Callback of value ----\n");
+		printf("-- 5) Close Application -------------\n\n");
 
 		printf("Option: ");
 
@@ -132,12 +154,13 @@ int main(){
 				continue;
 
 			case 5:
+				close_connection();
 				break;
 
 			default:
-                printf("ERROR\n");
+				printf("ERROR\n");
 				continue;
 		}
 	}
-    exit(0);
+	exit(0);
 }

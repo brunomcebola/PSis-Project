@@ -18,6 +18,7 @@
 *
 ** Side-effects:
 *		There's no side-effect 
+*
 *******************************************************************/
 void print_title(char* title) {
 	printf(ANSI_BOLD "%s\n\n" ANSI_RESET, title);
@@ -39,10 +40,11 @@ void print_title(char* title) {
 *		This function doesn't return any information
 *
 ** Side-effects:
-*		There's no side-effect 
+*		There's no side-effect
+*
 *******************************************************************/
 void print_error(char* error) {
-	printf(ANSI_RED "\nError: " ANSI_RESET "%s!\n", error);
+	printf(ANSI_BOLD ANSI_RED "Error: " ANSI_RESET ANSI_BOLD "%s!" ANSI_RESET, error);
 
 	return;
 }
@@ -65,7 +67,7 @@ void print_error(char* error) {
 *
 *******************************************************************/
 void print_warning(char* warning) {
-	printf(ANSI_YELLOW "\nWarning: " ANSI_RESET "%s!\n", warning);
+	printf(ANSI_BOLD ANSI_YELLOW "Warning: " ANSI_RESET ANSI_BOLD "%s!" ANSI_RESET, warning);
 
 	return;
 }
@@ -88,9 +90,10 @@ void print_warning(char* warning) {
 *
 ** Side-effects:
 *		There's no side-effect 
+*
 *******************************************************************/
 void print_success(char* description, char* data) {
-	printf(ANSI_BOLD ANSI_GREEN "\n%s: " ANSI_RESET ANSI_BOLD "%s\n" ANSI_RESET, description, data);
+	printf(ANSI_BOLD ANSI_GREEN "%s: " ANSI_RESET ANSI_BOLD "%s" ANSI_RESET, description, data);
 
 	return;
 }
@@ -109,9 +112,8 @@ void print_success(char* description, char* data) {
 *		The string that was converted from the intenger
 *
 ** Side-effects:
-*		It always allocates 15 bytes when probably there's no need
-*		for that much
-* TODO: bruno confere esta parte 
+*		This function has no side-effects
+*
 *******************************************************************/
 char* int2str(int val) {
 	char* str = calloc(15, sizeof(char));

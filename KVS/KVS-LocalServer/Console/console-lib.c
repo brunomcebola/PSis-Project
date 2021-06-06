@@ -46,10 +46,14 @@ void create_group_UI() {
 		group_id[strcspn(group_id, "\n")] = '\0';
 
 		if(strlen(group_id) == 0) {
+			printf("\n");
 			print_error("Please provide a group id!");
+			printf("\n\n");
 			retype = 1;
 		} else if(strlen(group_id) > MAX_GROUP_ID) {
+			printf("\n");
 			print_error("The group id can have a max of " STR(MAX_GROUP_ID) " chars!");
+			printf("\n\n");
 			retype = 1;
 		}
 
@@ -57,8 +61,9 @@ void create_group_UI() {
 
 	create_group(group_id, &secret);
 
-	print_success("\n🔑 Secret", secret);
-	printf("\n----\n");
+	printf("\n");
+	print_success("🔑 Secret", secret);
+	printf("\n\n----\n");
 
 	free(group_id);
 	free(secret);
@@ -100,10 +105,14 @@ void delete_group_UI() {
 		group_id[strcspn(group_id, "\n")] = '\0';
 
 		if(strlen(group_id) == 0) {
+			printf("\n");
 			print_error("Please provide a group id!");
+			printf("\n\n");
 			retype = 1;
 		} else if(strlen(group_id) > MAX_GROUP_ID) {
+			printf("\n");
 			print_error("The group id can have a max of " STR(MAX_GROUP_ID) " chars!");
+			printf("\n\n");
 			retype = 1;
 		}
 
@@ -111,12 +120,14 @@ void delete_group_UI() {
 
 	response = delete_group(group_id);
 
+	printf("\n");
 	if(response == SUCCESSFUL_OPERATION) {
 		print_success("Deleted group", group_id);
 	} else {
+
 		print_error("It was not possible to delete this group");
 	}
-	printf("\n----\n");
+	printf("\n\n----\n");
 
 	free(group_id);
 
@@ -159,10 +170,14 @@ void group_info_UI() {
 		group_id[strcspn(group_id, "\n")] = '\0';
 
 		if(strlen(group_id) == 0) {
+			printf("\n");
 			print_error("Please provide a group id!");
+			printf("\n\n");
 			retype = 1;
 		} else if(strlen(group_id) > MAX_GROUP_ID) {
+			printf("\n");
 			print_error("The group id can have a max of " STR(MAX_GROUP_ID) " chars!");
+			printf("\n\n");
 			retype = 1;
 		}
 
@@ -170,14 +185,15 @@ void group_info_UI() {
 
 	code = group_info(group_id, &secret, &num_pairs);
 
+	printf("\n");
 	if(code != NONEXISTENT_GROUP) {
 		print_success("Secret", secret);
+		printf("\n");
 		print_success("Number of key/pair values", int2str(num_pairs));
 	} else {
 		print_warning("The specified group does not exist");
 	}
-
-	printf("\n----\n");
+	printf("\n\n----\n");
 
 	free(group_id);
 	free(secret);

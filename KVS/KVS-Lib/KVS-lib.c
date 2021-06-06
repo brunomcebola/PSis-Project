@@ -152,12 +152,18 @@ void* callback_socket_handler(void* args) {
 	printf("\n");
 	if(code == SUCCESSFUL_OPERATION) {
 		if(bytes == len_bytes) {
+			printf("\n\n");
 			print_warning("The connection was terminated due to group deletion");
+			printf("\n\n");
 		} else {
+			printf("\n\n");
 			print_error("The connection was terminated due to a problem in the callback thread");
+			printf("\n\n");
 		}
 	} else {
+		printf("\n\n");
 		print_error("The was an error closing the connection in the callback thread");
+		printf("\n\n");
 	}
 	printf("\n");
 }
@@ -326,6 +332,7 @@ int establish_connection(char* group_id, char* secret) {
 				return UNSUCCESSFUL_SUBOPERATION;
 			}
 
+			print_success("Success", "Connection established");
 			return SUCCESSFUL_OPERATION;
 		}
 	}
@@ -553,7 +560,7 @@ int get_value(char* key, char** value) {
 			print_error("Broken message received from local server");
 			return RECEIVED_BROKEN_MESSAGE;
 		}
-
+		
 		if(strlen(*value) == 0) {
 			print_warning("The provided key/value pair does not exist");
 		} else {

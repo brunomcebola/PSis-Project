@@ -80,10 +80,103 @@ typedef struct {
 
 // helper functions
 
+/*******************************************************************
+*
+**void print_title() 
+*
+** Description:
+*		Prints out a title, in form of a string, in bold
+*
+** Parameters:
+*  		@param title - string refering to a title printed to the
+*						console
+*
+** Return:
+*		This function doesn't return any information
+*
+** Side-effects:
+*		There's no side-effect 
+*
+*******************************************************************/
 void print_title(char* title);
+
+/*******************************************************************
+*
+**void print_error() 
+*
+** Description:
+*		Prints out the error in red so it's clear that it's an error
+*
+** Parameters:
+*  		@param error - string that specifies the error
+*
+** Return:
+*		This function doesn't return any information
+*
+** Side-effects:
+*		There's no side-effect 
+*
+*******************************************************************/
 void print_error(char* error);
-void print_success(char* description, char* data);
-char* int2str(int val);
+
+/*******************************************************************
+*
+** void print_warning(char* warning)
+*
+** Description:
+*		Prints out the warning in yellow
+*
+** Parameters:
+*  		@param warning - string that specifies the warning
+*
+** Return:
+*		This function doesn't return any information
+*
+** Side-effects:
+*		There's no side-effect 
+*
+*******************************************************************/
 void print_warning(char* warning);
+
+/*******************************************************************
+*
+**void print_sucess() 
+*
+** Description:
+*		Prints in the stdin that something was sucessful, specifying
+*		which part was sucessful, in green, and the data related 
+*		to that part in bold
+*
+** Parameters:
+*  		@param description - string defining which part was succesful
+*		@param data - string that specifies which that was acomplished 
+*
+** Return:
+*		This function doesn't return any information
+*
+** Side-effects:
+*		There's no side-effect 
+*
+*******************************************************************/
+void print_success(char* description, char* data);
+
+/*******************************************************************
+*
+** char* int2str() 
+*
+** Description:
+*		Converts an intenger to a string value
+*
+** Parameters:
+*  		@param val - int that needs to be converted to string  
+*
+** Return:
+*		The string that was converted from the intenger
+*
+** Side-effects:
+*		This function has no side-effects
+*
+*******************************************************************/
+char* int2str(int val);
 
 #endif
