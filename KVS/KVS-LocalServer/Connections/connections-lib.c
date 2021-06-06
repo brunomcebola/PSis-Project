@@ -38,7 +38,7 @@ typedef struct _connection_t {
 connection_t* connections_list = NULL;
 group_t* groups_list = NULL;
 pthread_t listening_thread;
-pthread_rwlock_t group_list_rwlock; // TODO dar destroy na consola
+pthread_rwlock_t group_list_rwlock;
 pthread_mutex_t authentication_mutex;
 
 int local_server_unix_socket = -1;
@@ -1107,6 +1107,7 @@ int delete_group(char* group_id) {
 		pthread_rwlock_destroy(&(group->rwlock));
 		destroy_hash_table(group->hash_table);
 		free(group->hash_table);
+		pthread_rwlock_destroy(&group->rwlock);
 
 		while(aux != NULL) {
 			if(aux->group == group) {
@@ -1121,9 +1122,115 @@ int delete_group(char* group_id) {
 		}
 
 		free(group);
+		
 	} else {
 		return NONEXISTENT_GROUP;
 	}
 
 	return SUCCESSFUL_OPERATION;
+}
+
+/*********************************************************************
+* 
+**int close_local()
+*
+** Description:
+*		This function terminates all connections in and out of the
+*		local server, frees all variables and kills the local server
+*		itself.
+*
+** Parameters:
+*  		This function takes no parameters
+*
+** Return:
+*		On success: SUCCESSFUL_OPERATION is returned.
+*
+*		On error: UNSUCCESSFUL_OPERATION is returned.
+*		
+** Side-effects:
+*		There are no side-effects
+*
+*********************************************************************/
+int close_local(){
+	int len_bytes = 0, bytes = 0;
+	char key[MAX_KEY + 1] = "\0";
+
+	group_t* group = groups_list;
+	group_t* before_group = groups_list;
+
+	connection_t* aux = connections_list;
+	connection_t* before_aux = connections_list;
+
+	//deleting all the groups in the local server.	
+	pthread_rwlock_rwlock(&group_list_rwlock);
+	while(group != NULL) {
+
+		// warning callback functions to shutdown
+		aux = connections_list;
+		before_aux = connections_list;
+		while(aux != NULL) {
+			if(aux->group == group) {
+				len_bytes = (MAX_KEY + 1) * sizeof(char);
+				bytes = write(aux->cb_socket, key, len_bytes);
+				if(bytes != len_bytes) {
+					return UNSUCCESSFUL_OPERATION;
+				}
+				
+				if(aux->socket != -1) {
+					close(aux->socket);
+					aux->socket = -1;
+				}
+				if(aux->cb_socket != -1) {
+					close(aux->cb_socket);
+					aux->cb_socket = -1;
+				}
+
+				if(before_aux == aux){
+					connections_list = aux->next;
+					free(aux);
+					aux = connections_list;
+					before_aux = connections_list;
+				}
+				else{
+					before_aux->next = aux->next;
+					free(aux);
+					aux = before_aux->next;
+				}
+			}
+			else{
+				before_aux = aux;
+				aux = aux->next;
+			}
+		}
+
+		before_group = group;
+		group = group->next;
+		destroy_hash_table(before_group->hash_table);
+		free(before_group->hash_table);
+		pthread_rwlock_destroy(&before_group->rwlock);
+		free(before_group);
+	}
+	pthread_rwlock_unlock(&group_list_rwlock);
+
+	pthread_rwlock_destroy(&group_list_rwlock);
+	pthread_mutex_destroy(&authentication_mutex);
+
+	if(close(local_server_unix_socket) != 0 ){
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	if(close(cb_local_server_unix_socket) != 0){
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	if(close(apps_local_server_inet_socket) != 0){
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	if(close(console_local_server_inet_socket) != 0){
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	return SUCCESSFUL_OPERATION;
+
 }

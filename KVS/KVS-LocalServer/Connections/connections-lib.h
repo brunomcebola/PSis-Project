@@ -182,4 +182,27 @@ int create_group(char* group_id, char** secret);
 *********************************************************************/
 int delete_group(char* group_id);
 
+/*********************************************************************
+* 
+**int close_local()
+*
+** Description:
+*		This function terminates all connections in and out of the
+*		local server, frees all variables and kills the local server
+*		itself.
+*
+** Parameters:
+*  		This function takes no parameters
+*
+** Return:
+*		On success: SUCCESSFUL_OPERATION is returned.
+*
+*		On error: UNSUCCESSFUL_OPERATION is returned.
+*		
+** Side-effects:
+*		There are no side-effects
+*
+*********************************************************************/
+int close_local();
+
 #endif
