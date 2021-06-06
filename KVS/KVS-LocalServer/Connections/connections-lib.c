@@ -50,8 +50,6 @@ struct sockaddr_un cb_local_server_unix_socket_addr;
 struct sockaddr_in apps_auth_server_inet_socket_addr;
 struct sockaddr_in console_auth_server_inet_socket_addr;
 
-// TODO APAGAR O WRONG_KEY
-
 // APPS HANDLING FUNCTIONS FOR INTERNAL USE
 
 /*********************************************************************
@@ -85,14 +83,7 @@ void close_connection(connection_t* connection, int list_critical_region, int gr
 
 	t = time(NULL);
 	localtime_r(&t, &tm);
-	sprintf(connection->close_time,
-			"%02d-%02d-%d %02d:%02d:%02d",
-			tm.tm_mday,
-			tm.tm_mon + 1,
-			tm.tm_year + 1900,
-			tm.tm_hour,
-			tm.tm_min,
-			tm.tm_sec);
+	sprintf(connection->close_time, "%02d-%02d-%d %02d:%02d:%02d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
 	if(connection->socket != -1) {
 		close(connection->socket);
 		connection->socket = -1;
@@ -448,8 +439,7 @@ void* connection_handler(void* connection) {
 	}
 
 	// handle response from auth server
-	bytes = recvfrom(
-		apps_local_server_inet_socket, &code, sizeof(int), MSG_WAITALL, (struct sockaddr*)&apps_auth_server_inet_socket_addr, &len);
+	bytes = recvfrom(apps_local_server_inet_socket, &code, sizeof(int), MSG_WAITALL, (struct sockaddr*)&apps_auth_server_inet_socket_addr, &len);
 	if(bytes != sizeof(int)) {
 		pthread_mutex_unlock(&authentication_mutex);
 		close_connection((connection_t*)connection, 0, 0);
@@ -556,14 +546,7 @@ void* connections_listener(void* arg) {
 
 				t = time(NULL);
 				localtime_r(&t, &tm);
-				sprintf(connection->open_time,
-						"%02d-%02d-%d %02d:%02d:%02d",
-						tm.tm_mday,
-						tm.tm_mon + 1,
-						tm.tm_year + 1900,
-						tm.tm_hour,
-						tm.tm_min,
-						tm.tm_sec);
+				sprintf(connection->open_time, "%02d-%02d-%d %02d:%02d:%02d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 				connection->close_time[0] = '\0';
 
@@ -841,7 +824,7 @@ int start_connections() {
 *******************************************************************/
 int group_info(char* group_id, char** secret, int* num_pairs) {
 	group_t* group = groups_list;
-	int bytes = -1;
+	int bytes = -1, len_bytes = 0;
 	int len = sizeof(struct sockaddr_in);
 	operation_packet operation;
 
@@ -857,12 +840,8 @@ int group_info(char* group_id, char** secret, int* num_pairs) {
 		operation.type = GET;
 		strncpy(operation.group_id, group_id, MAX_GROUP_ID);
 
-		bytes = sendto(console_local_server_inet_socket,
-					   &operation,
-					   sizeof(operation),
-					   MSG_CONFIRM,
-					   (struct sockaddr*)&console_auth_server_inet_socket_addr,
-					   len);
+		bytes =
+			sendto(console_local_server_inet_socket, &operation, sizeof(operation), MSG_CONFIRM, (struct sockaddr*)&console_auth_server_inet_socket_addr, len);
 		if(bytes == -1) {
 			return SENT_BROKEN_MESSAGE;
 		}
@@ -872,13 +851,9 @@ int group_info(char* group_id, char** secret, int* num_pairs) {
 			return NO_MEMORY_AVAILABLE;
 		}
 
-		bytes = recvfrom(console_local_server_inet_socket,
-						 *secret,
-						 MAX_SECRET + 1,
-						 MSG_WAITALL,
-						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
-						 &len);
-		if(bytes == -1) {
+		len_bytes = (MAX_SECRET + 1) * sizeof(char);
+		bytes = recvfrom(console_local_server_inet_socket, *secret, len_bytes, MSG_WAITALL, (struct sockaddr*)&console_auth_server_inet_socket_addr, &len);
+		if(bytes != len_bytes) {
 			return RECEIVED_BROKEN_MESSAGE;
 		}
 
@@ -927,7 +902,7 @@ int group_info(char* group_id, char** secret, int* num_pairs) {
 *********************************************************************/
 int create_group(char* group_id, char** secret) {
 	group_t* group = groups_list;
-	int bytes = -1;
+	int bytes = -1, len_bytes = 0;
 	int len = sizeof(struct sockaddr_in);
 	operation_packet operation;
 
@@ -944,12 +919,7 @@ int create_group(char* group_id, char** secret) {
 	operation.type = group == NULL ? POST : GET;
 	strncpy(operation.group_id, group_id, MAX_GROUP_ID);
 
-	bytes = sendto(console_local_server_inet_socket,
-				   &operation,
-				   sizeof(operation),
-				   MSG_CONFIRM,
-				   (struct sockaddr*)&console_auth_server_inet_socket_addr,
-				   len);
+	bytes = sendto(console_local_server_inet_socket, &operation, sizeof(operation), MSG_CONFIRM, (struct sockaddr*)&console_auth_server_inet_socket_addr, len);
 	if(bytes != sizeof(operation)) {
 		return SENT_BROKEN_MESSAGE;
 	}
@@ -959,13 +929,9 @@ int create_group(char* group_id, char** secret) {
 		return NO_MEMORY_AVAILABLE;
 	}
 
-	bytes = recvfrom(console_local_server_inet_socket,
-					 *secret,
-					 MAX_SECRET + 1,
-					 MSG_WAITALL,
-					 (struct sockaddr*)&console_auth_server_inet_socket_addr,
-					 &len);
-	if(bytes != MAX_SECRET + 1) {
+	len_bytes = (MAX_SECRET + 1) * sizeof(char);
+	bytes = recvfrom(console_local_server_inet_socket, *secret, len_bytes, MSG_WAITALL, (struct sockaddr*)&console_auth_server_inet_socket_addr, &len);
+	if(bytes != len_bytes) {
 		return RECEIVED_BROKEN_MESSAGE;
 	}
 
@@ -1072,7 +1038,7 @@ void app_status() {
 int delete_group(char* group_id) {
 	group_t* group = groups_list;
 	group_t* before_group = groups_list;
-	int bytes = -1;
+	int bytes = -1, len_bytes = 0;
 	int len = sizeof(struct sockaddr_in);
 	operation_packet operation;
 	char response;
@@ -1093,27 +1059,18 @@ int delete_group(char* group_id) {
 		operation.type = DEL;
 		strncpy(operation.group_id, group_id, MAX_GROUP_ID);
 
-		bytes = sendto(console_local_server_inet_socket,
-					   &operation,
-					   sizeof(operation),
-					   MSG_CONFIRM,
-					   (struct sockaddr*)&console_auth_server_inet_socket_addr,
-					   len);
+		bytes =
+			sendto(console_local_server_inet_socket, &operation, sizeof(operation), MSG_CONFIRM, (struct sockaddr*)&console_auth_server_inet_socket_addr, len);
 		if(bytes != sizeof(operation)) {
 			return SENT_BROKEN_MESSAGE;
 		}
 
-		bytes = recvfrom(console_local_server_inet_socket,
-						 &response,
-						 sizeof(int),
-						 MSG_WAITALL,
-						 (struct sockaddr*)&console_auth_server_inet_socket_addr,
-						 &len);
+		bytes = recvfrom(console_local_server_inet_socket, &response, sizeof(int), MSG_WAITALL, (struct sockaddr*)&console_auth_server_inet_socket_addr, &len);
 		if(bytes != sizeof(int)) {
 			return RECEIVED_BROKEN_MESSAGE;
 		}
 
-		if(response == WRONG_KEY) {
+		if(response == NONEXISTENT_KEY) {
 			return NONEXISTENT_GROUP;
 		}
 
@@ -1132,8 +1089,9 @@ int delete_group(char* group_id) {
 
 		while(aux != NULL) {
 			if(aux->group == group) {
-				bytes = write(aux->cb_socket, key, (MAX_KEY + 1) * sizeof(char));
-				if(bytes != (MAX_KEY + 1) * sizeof(char)) {
+				len_bytes = (MAX_KEY + 1) * sizeof(char);
+				bytes = write(aux->cb_socket, key, len_bytes);
+				if(bytes != len_bytes) {
 					return UNSUCCESSFUL_OPERATION;
 				}
 			}

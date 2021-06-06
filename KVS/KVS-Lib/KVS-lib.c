@@ -30,6 +30,10 @@ callback_t* callbacks_list = NULL;
 
 pthread_t cb_socket_thread;
 
+// TODO ver prints em todo o lado
+
+// FUNCTIONS FOR INTERNAL USE
+
 /*******************************************************************
 *
 ** void* callback_handler(void* callback_info)
@@ -83,15 +87,37 @@ void* callback_handler(void* callback_info) {
 	return NULL;
 }
 
+/*******************************************************************
+*
+** void* callback_socket_handler(void* args)
+*
+** Description:
+*		This function waits for the key whose callback needs to be 
+*		terminated. If an empty is returned the all callbacks and the
+*		connection it self gets closed because it means the group was
+*		deleted from the local server.
+*
+** Parameters:
+*  	@param args - should be set to NULL.
+*
+** Return:
+*		Nothing is returned by the function.
+*
+** Side-effects:
+*		This function has no side-effect
+*	
+*******************************************************************/
 void* callback_socket_handler(void* args) {
-	int bytes = 0;
+	int bytes = 0, len_bytes = 0, code = 0;
 	char key[MAX_KEY + 1];
 	callback_t* self = NULL;
 
+	len_bytes = (MAX_KEY + 1) * sizeof(char);
+
 	while(1) {
-		bytes = read(cb_socket, key, (MAX_KEY + 1) * sizeof(char));
-		if(bytes != (MAX_KEY + 1) * sizeof(char)) {
-			// TODO
+		bytes = read(cb_socket, key, len_bytes);
+		if(bytes != len_bytes) {
+			break;
 		}
 
 		if(strlen(key) != 0) {
@@ -121,14 +147,22 @@ void* callback_socket_handler(void* args) {
 		self = self->next;
 	}
 
-	close_connection();
+	code = close_connection();
 
 	printf("\n");
-	print_warning("The connection was terminated due to group deletion");
+	if(code == SUCCESSFUL_OPERATION) {
+		if(bytes == len_bytes) {
+			print_warning("The connection was terminated due to group deletion");
+		} else {
+			print_error("The connection was terminated due to a problem in the callback thread");
+		}
+	} else {
+		print_error("The was an error closing the connection in the callback thread");
+	}
 	printf("\n");
 }
 
-// TODO falta para cima
+// GROUP HANDLING FUNCTIONS AVAILABLE IN .h
 
 /*********************************************************************
 *
@@ -646,54 +680,6 @@ int delete_value(char* key) {
 
 /*********************************************************************
 *
-** int close_connection()
-*
-** Description:
-*		Closes all the communication channels between the app and the
-*		local server.
-*
-** Parameters:
-*  	This function takes no parameters.
-*
-** Return:
-*		On success: SUCCESSFUL_OPERATION is returned. 
-*
-*		On error: UNSUCCESSFUL_OPERATION is returned.
-*
-** Side-effects:
-*		This function has no side-effect.
-*	
-*********************************************************************/
-int close_connection() {
-	// verifies if both are closed
-	if(app_socket == -1 && cb_socket == -1) {
-		print_error("No active connection");
-		return UNSUCCESSFUL_OPERATION;
-	}
-
-	// close main socket
-	if(app_socket != -1) {
-		if(close(app_socket) == -1) {
-			print_error("Unable to close main socket");
-			return UNSUCCESSFUL_OPERATION;
-		}
-		app_socket = -1;
-	}
-
-	// close callback socket
-	if(cb_socket != -1) {
-		if(close(cb_socket) == -1) {
-			print_error("Unable to close calllback socket");
-			return UNSUCCESSFUL_OPERATION;
-		}
-		cb_socket = -1;
-	}
-
-	return SUCCESSFUL_OPERATION;
-}
-
-/*********************************************************************
-*
 ** int register_callback(char* key, void (*callback_function)(char*))
 *
 ** Description:
@@ -867,4 +853,52 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 			return SUCCESSFUL_OPERATION;
 		}
 	}
+}
+
+/*********************************************************************
+*
+** int close_connection()
+*
+** Description:
+*		Closes all the communication channels between the app and the
+*		local server.
+*
+** Parameters:
+*  	This function takes no parameters.
+*
+** Return:
+*		On success: SUCCESSFUL_OPERATION is returned. 
+*
+*		On error: UNSUCCESSFUL_OPERATION is returned.
+*
+** Side-effects:
+*		This function has no side-effect.
+*	
+*********************************************************************/
+int close_connection() {
+	// verifies if both are closed
+	if(app_socket == -1 && cb_socket == -1) {
+		print_error("No active connection");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	// close main socket
+	if(app_socket != -1) {
+		if(close(app_socket) == -1) {
+			print_error("Unable to close main socket");
+			return UNSUCCESSFUL_OPERATION;
+		}
+		app_socket = -1;
+	}
+
+	// close callback socket
+	if(cb_socket != -1) {
+		if(close(cb_socket) == -1) {
+			print_error("Unable to close calllback socket");
+			return UNSUCCESSFUL_OPERATION;
+		}
+		cb_socket = -1;
+	}
+
+	return SUCCESSFUL_OPERATION;
 }

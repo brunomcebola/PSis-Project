@@ -97,6 +97,8 @@ unsigned int hash(char* key) {
 	return hash_value;
 }
 
+// HASHTABLE FUNCTIONS ACCESSIBLE TO THE CLIENT ON .h
+
 /*********************************************************************
 *
 ** key_pair_t** create_hash_table()

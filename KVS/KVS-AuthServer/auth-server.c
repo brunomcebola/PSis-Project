@@ -74,7 +74,7 @@ char* generate_secret() {
 *	
 *************************************************************************/
 void create_group(struct sockaddr_in* addr, char* group_id) {
-	int bytes = -1, code = 0;
+	int bytes = -1, code = 0, len_bytes = 0;
 	char* secret = NULL;
 
 	//verifies if the group
@@ -92,8 +92,9 @@ void create_group(struct sockaddr_in* addr, char* group_id) {
 		}
 	}
 
-	bytes = sendto(console_auth_server_socket, secret, MAX_SECRET + 1, MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
-	if(bytes != MAX_SECRET + 1) {
+	len_bytes = (MAX_SECRET + 1) * sizeof(char);
+	bytes = sendto(console_auth_server_socket, secret, len_bytes, MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
+	if(bytes != len_bytes) {
 		free(secret);
 		return;
 	}
@@ -129,7 +130,7 @@ void delete_group(struct sockaddr_in* addr, char* group_id) {
 	response = delete_from_hash_table(groups, group_id);
 
 	bytes = sendto(console_auth_server_socket, &response, sizeof(int), MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
-	if(bytes == -1) {
+	if(bytes != sizeof(int)) {
 		return;
 	}
 
@@ -157,14 +158,15 @@ void delete_group(struct sockaddr_in* addr, char* group_id) {
 *	
 *************************************************************************/
 void get_group_secret(struct sockaddr_in* addr, char* group_id) {
-	int bytes = -1;
+	int bytes = -1, len_bytes = 0;
 	char* secret = NULL;
 
 	get_from_hash_table(groups, group_id, &secret);
 
-	bytes = sendto(console_auth_server_socket, secret, MAX_SECRET + 1, MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
-	if(bytes == -1) {
-		// TODO
+	len_bytes = (MAX_SECRET + 1) * sizeof(char);
+	bytes = sendto(console_auth_server_socket, secret, len_bytes, MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
+	if(bytes != len_bytes) {
+		return;
 	}
 
 	return;

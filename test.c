@@ -17,10 +17,8 @@ void my_function(char* key) {
 }
 
 int main() {
-	char *secret = "Y4U2U9D4J7V8U3Y3I7B5M4N7A1X8V1Y3", *group_id = "hello";
+	char *secret = "C4E2A5V5B5G2Z3Y5R8O1C8Z3J2K3X1I4", *group_id = "hello";
 	char* nome1 = NULL;
-
-	// TODO check return codes of KVS_Lib
 
 	establish_connection(group_id, secret);
 
