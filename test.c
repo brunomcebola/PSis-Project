@@ -17,7 +17,7 @@ void my_function(char* key) {
 }
 
 int main() {
-	char *secret = "L6C3L4M0Z8G6J5T8D3H5S5X5K0F2P4S0", *group_id = "hello";
+	char *secret = "Y4U2U9D4J7V8U3Y3I7B5M4N7A1X8V1Y3", *group_id = "hello";
 	char* nome1 = NULL;
 
 	// TODO check return codes of KVS_Lib
@@ -74,13 +74,9 @@ int main() {
 
 	delete_value("nome1");
 
-	getchar();
-
 	//
 
 	put_value("nome1", "Bruno Cebola");
-
-	getchar();
 
 	get_value("nome1", &nome1);
 

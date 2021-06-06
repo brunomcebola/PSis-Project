@@ -176,7 +176,6 @@ void* callback_socket_handler(void* args) {
 int establish_connection(char* group_id, char* secret) {
 	int bytes = 0;
 	int response = 0;
-	int err = 0;
 
 	struct sockaddr_un app_addr;
 	struct sockaddr_un cb_addr;
@@ -234,16 +233,14 @@ int establish_connection(char* group_id, char* secret) {
 		sprintf(cb_local_server_addr.sun_path, CB_LOCAL_SERVER_ADDRESS);
 
 		// connecting main socket to local server
-		err = connect(app_socket, (struct sockaddr*)&local_server_addr, sizeof(struct sockaddr_un));
-		if(err == -1) {
+		if(connect(app_socket, (struct sockaddr*)&local_server_addr, sizeof(struct sockaddr_un)) == -1) {
 			print_error("Unable to connect to local server");
 			close_connection();
 			return UNABLE_TO_CONNECT;
 		}
 
 		// connecting callback socket to local server
-		err = connect(cb_socket, (struct sockaddr*)&cb_local_server_addr, sizeof(struct sockaddr_un));
-		if(err == -1) {
+		if(connect(cb_socket, (struct sockaddr*)&cb_local_server_addr, sizeof(struct sockaddr_un)) == -1) {
 			print_error("Unable to connect to local server callback");
 			close_connection();
 			return UNABLE_TO_CONNECT;

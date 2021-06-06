@@ -5,7 +5,7 @@
 // functions to handle application side requestes
 
 int setup_connections();
-void start_connections();
+int start_connections();
 
 // functions to handle console side requestes
 

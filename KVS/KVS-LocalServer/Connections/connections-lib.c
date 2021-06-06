@@ -52,151 +52,7 @@ struct sockaddr_in console_auth_server_inet_socket_addr;
 
 // TODO APAGAR O WRONG_KEY
 
-/*******************************************************************
-* 
-** void setup_connections() 
-*
-** Description:
-*		It starts all connections between application and local 
-*		server and between local server and authentication server.
-*		It also inicializates all the necessary global mutexes
-*		so it's possible to have synchronization
-*
-** Parameters:
-*  		This function has no parameters
-*
-** Return:
-*		Returns an int indicating if the the setup was successful 
-*		(SUCCESSFUL_CONNECTION) or if it failed (UNABLE_TO_CONNECT).
-*		It also return UNSUCCESSFUL_OPERATION if the mutexes 
-*		couldn't be inicialized.
-*		
-*
-** Side-effects:
-*		There are no side-effects
-*
-*******************************************************************/
-int setup_connections() {
-	// CONNECTIONS TO AUTH SERVER
-
-	// creation of dgram socket to connect the requests from apps to
-	// the authserver via localserver
-	apps_local_server_inet_socket = socket(AF_INET, SOCK_DGRAM, 0);
-	if(apps_local_server_inet_socket == -1) {
-		print_error("Unable to create socket to connect apps to authentication server");
-		return UNABLE_TO_CONNECT;
-	}
-
-	// setting a timeout on requests from apps to the authserver
-	struct timeval tv;
-	tv.tv_sec = 300; // timeout time
-	if(setsockopt(apps_local_server_inet_socket, SOL_SOCKET, SO_RCVTIMEO | SO_SNDTIMEO, &tv, sizeof(tv)) < 0) {
-		close(apps_local_server_inet_socket);
-		apps_local_server_inet_socket = -1;
-		print_error("Unable to set options on socket to connect apps to authentication server");
-		return UNABLE_TO_CONNECT;
-	}
-
-	// creation of dgram socket to connect the requests from consoles to
-	// the authserver via localserver
-	console_local_server_inet_socket = socket(AF_INET, SOCK_DGRAM, 0);
-	if(console_local_server_inet_socket == -1) {
-		close(apps_local_server_inet_socket);
-		apps_local_server_inet_socket = -1;
-		close(console_local_server_inet_socket);
-		console_local_server_inet_socket = -1;
-		print_error("Unable to create socket to connect consoles to authentication server");
-		return UNABLE_TO_CONNECT;
-	}
-
-	// inicializing the rwlock for the console data sharing
-	if(pthread_rwlock_init(&group_list_rwlock, NULL) != 0) {
-		return UNSUCCESSFUL_OPERATION;
-	}
-	// inicializing the mutex for communication with the authentication server
-	if(pthread_mutex_init(&authentication_mutex, NULL) != 0) {
-		return UNSUCCESSFUL_OPERATION;
-	}
-
-	apps_auth_server_inet_socket_addr.sin_family = AF_INET;
-	apps_auth_server_inet_socket_addr.sin_port = htons(APPS_AUTH_SERVER_PORT);
-	apps_auth_server_inet_socket_addr.sin_addr.s_addr = inet_addr(AUTH_SERVER_ADDRESS);
-
-	console_auth_server_inet_socket_addr.sin_family = AF_INET;
-	console_auth_server_inet_socket_addr.sin_port = htons(CONSOLE_AUTH_SERVER_PORT);
-	console_auth_server_inet_socket_addr.sin_addr.s_addr = inet_addr(AUTH_SERVER_ADDRESS);
-
-	// CONNECTIONS TO APPS
-
-	// creation of unix socket to connect the requests from apps to the localserver
-	local_server_unix_socket = socket(AF_UNIX, SOCK_STREAM, 0);
-	if(local_server_unix_socket == -1) {
-		close(apps_local_server_inet_socket);
-		apps_local_server_inet_socket = -1;
-		close(console_local_server_inet_socket);
-		console_local_server_inet_socket = -1;
-		print_error("Unable to create socket to connect to apps");
-		return UNABLE_TO_CONNECT;
-	}
-
-	// creation of unix socket to connect the apps callbacks to the localserver
-	cb_local_server_unix_socket = socket(AF_UNIX, SOCK_STREAM, 0);
-	if(local_server_unix_socket == -1) {
-		close(apps_local_server_inet_socket);
-		apps_local_server_inet_socket = -1;
-		close(console_local_server_inet_socket);
-		console_local_server_inet_socket = -1;
-		close(local_server_unix_socket);
-		local_server_unix_socket = -1;
-		print_error("Unable to create socket to connect to callbacks");
-		return UNABLE_TO_CONNECT;
-	}
-
-	local_server_unix_socket_addr.sun_family = AF_UNIX;
-	sprintf(local_server_unix_socket_addr.sun_path, LOCAL_SERVER_ADDRESS);
-	unlink(LOCAL_SERVER_ADDRESS);
-
-	cb_local_server_unix_socket_addr.sun_family = AF_UNIX;
-	sprintf(cb_local_server_unix_socket_addr.sun_path, CB_LOCAL_SERVER_ADDRESS);
-	unlink(CB_LOCAL_SERVER_ADDRESS);
-
-	// bind unix socket to connect the requests from apps to the localserver
-	int err;
-	err = bind(local_server_unix_socket, (struct sockaddr*)&(local_server_unix_socket_addr), sizeof(struct sockaddr_un));
-	if(err == -1) {
-		close(apps_local_server_inet_socket);
-		apps_local_server_inet_socket = -1;
-		close(console_local_server_inet_socket);
-		console_local_server_inet_socket = -1;
-		close(local_server_unix_socket);
-		local_server_unix_socket = -1;
-		close(cb_local_server_unix_socket);
-		cb_local_server_unix_socket = -1;
-		print_error("Unable to bind socket to connect to apps");
-		return UNABLE_TO_CONNECT;
-	}
-
-	// bind unix socket to connect the apps callbacks to the localserver
-	err = bind(cb_local_server_unix_socket, (struct sockaddr*)&(cb_local_server_unix_socket_addr), sizeof(struct sockaddr_un));
-	if(err == -1) {
-		close(apps_local_server_inet_socket);
-		apps_local_server_inet_socket = -1;
-		close(console_local_server_inet_socket);
-		console_local_server_inet_socket = -1;
-		close(local_server_unix_socket);
-		local_server_unix_socket = -1;
-		close(cb_local_server_unix_socket);
-		cb_local_server_unix_socket = -1;
-		print_error("Unable to bind socket to connect to callbacks");
-		return UNABLE_TO_CONNECT;
-	}
-
-	return SUCCESSFUL_CONNECTION;
-}
-
-// TODO falta para cima
-
-// APPS HANDLING FUNCTIONS
+// APPS HANDLING FUNCTIONS FOR INTERNAL USE
 
 /*********************************************************************
 *
@@ -523,8 +379,26 @@ void register_callback(connection_t* connection) {
 	return;
 }
 
-// TODO falta para baixo
-
+/*********************************************************************
+*
+** void* connection_handler(void* connection)
+*
+** Description:
+*		Handles every app request: authentication, put value, get value,
+*		delete value and register callback.
+*
+** Parameters:
+*  	@param connection - struct holding connections settings
+*
+** Return:
+*		Nothing is returned by this function.
+*
+** Side-effects:
+*		If a write or a read from the socket is not successful then the 
+*		connection is terminated (both thread and socket get closed).
+*		A success/error code is sent to the client via socket write.
+*
+*********************************************************************/
 void* connection_handler(void* connection) {
 	int bytes = -1, code = 0;
 	int len = sizeof(struct sockaddr_in);
@@ -534,15 +408,32 @@ void* connection_handler(void* connection) {
 	connection_packet connection_info;
 
 	// receive info from app
-	pthread_mutex_lock(&authentication_mutex);
-
 	bytes = read(((connection_t*)connection)->socket, &connection_info, sizeof(connection_packet));
 	if(bytes != sizeof(connection_packet)) {
-		pthread_mutex_unlock(&authentication_mutex);
 		close_connection((connection_t*)connection, 0, 0);
 	}
 
 	((connection_t*)connection)->pid = connection_info.pid;
+
+	pthread_rwlock_rdlock(&group_list_rwlock);
+	group = groups_list;
+
+	while(group != NULL) {
+		if(strcmp(group->group_id, connection_info.credentials.group_id) == 0) {
+			break;
+		}
+		group = group->next;
+	}
+
+	if(group == NULL) {
+		code = NONEXISTENT_GROUP;
+		bytes = write(((connection_t*)connection)->socket, &code, sizeof(int));
+		pthread_rwlock_unlock(&group_list_rwlock);
+		close_connection((connection_t*)connection, 1, 0);
+	}
+
+	pthread_mutex_lock(&authentication_mutex);
+	pthread_rwlock_unlock(&group_list_rwlock);
 
 	// send information to auth server
 	bytes = sendto(apps_local_server_inet_socket,
@@ -570,38 +461,7 @@ void* connection_handler(void* connection) {
 		close_connection((connection_t*)connection, 0, 0);
 	}
 
-	pthread_rwlock_wrlock(&group_list_rwlock);
 	pthread_mutex_unlock(&authentication_mutex);
-
-	group = groups_list;
-
-	while(group != NULL) {
-		if(strcmp(group->group_id, connection_info.credentials.group_id) == 0) {
-			break;
-		}
-		group = group->next;
-	}
-
-	if(group == NULL) {
-		group = calloc(1, sizeof(group_t));
-		if(group == NULL) {
-			close_connection((connection_t*)connection, 1, 0);
-		}
-
-		strncpy(group->group_id, connection_info.credentials.group_id, MAX_GROUP_ID);
-
-		group->hash_table = create_hash_table();
-
-		group->next = groups_list;
-
-		// inicializing the rwlock for each data
-		if(pthread_rwlock_init(&group->rwlock, NULL) != 0) {
-			close_connection((connection_t*)connection, 1, 0);
-		}
-
-		groups_list = group;
-	}
-	pthread_rwlock_unlock(&group_list_rwlock);
 
 	while(1) {
 		bytes = read(((connection_t*)connection)->socket, &operation_type, sizeof(char));
@@ -650,9 +510,28 @@ void* connection_handler(void* connection) {
 	}
 }
 
-// TODO COMENTAR AQUI
+/*********************************************************************
+* 
+** void* connections_listener(void* arg) 
+*
+** Description:
+*		Initializes all the communication sockets (to apps ant to auth 
+*		server). Initializes global thread locks that enable the local 
+*		server to have synchronization.
+*
+** Parameters:
+*  	@param arg - should be set to NULL.
+*
+** Return:
+*		Nothing is returned by this function. 
+*		
+** Side-effects:
+*		If there is an error alllocating memory to store the incoming 
+*		connection info then the listening thread gets closed and no more
+*		new connections are accpted.
+*
+*********************************************************************/
 void* connections_listener(void* arg) {
-	int sockaddr_size = sizeof(struct sockaddr_un);
 	connection_t* connection = NULL;
 	time_t t;
 	struct tm tm;
@@ -660,16 +539,21 @@ void* connections_listener(void* arg) {
 	while(1) {
 		connection = calloc(1, sizeof(connection_t));
 		if(connection == NULL) {
-			close_connection((connection_t*)connection, 0, 0);
+			print_error("Unable to create variable to store incoming connection info");
+			break;
 		}
 
 		connection->socket = accept(local_server_unix_socket, NULL, NULL);
 		if(connection->socket != -1) {
 			connection->cb_socket = accept(cb_local_server_unix_socket, NULL, NULL);
-			if(connection->cb_socket == -1) {
-				close(connection->socket);
-				free(connection);
-			} else {
+			if(connection->cb_socket != -1) {
+				if(pthread_create(&(connection->thread), NULL, connection_handler, connection) != 0) {
+					close(connection->socket);
+					close(connection->cb_socket);
+					free(connection);
+					continue;
+				}
+
 				t = time(NULL);
 				localtime_r(&t, &tm);
 				sprintf(connection->open_time,
@@ -686,25 +570,240 @@ void* connections_listener(void* arg) {
 				connection->next = connections_list;
 
 				connections_list = connection;
-
-				pthread_create(&(connection->thread), NULL, connection_handler, connection);
+			} else {
+				close(connection->socket);
+				free(connection);
 			}
 
 		} else {
 			free(connection);
 		}
 	}
-}
-// TODO COMENTAR AQUI
-void start_connections() {
-	listen(local_server_unix_socket, 10);
 
-	listen(cb_local_server_unix_socket, 10);
-
-	pthread_create(&listening_thread, NULL, connections_listener, NULL);
+	pthread_exit(NULL);
 }
 
-// console handling functions
+// CONNECTIONS HANDLING FUNCTIONS AVAILABLE IN .h
+
+/*********************************************************************
+* 
+** int setup_connections() 
+*
+** Description:
+*		Initializes all the communication sockets (to apps ant to auth 
+*		server). Initializes global thread locks that enable the local 
+*		server to have synchronization.
+*
+** Parameters:
+*  	This function takes no parameters.
+*
+** Return:
+*		On success: SUCCESSFUL_OPERATION is returned. 
+*
+*		On error: UNSUCCESSFUL_OPERATION is returned. 
+*		
+** Side-effects:
+*		This function has no side-effects.
+*
+*********************************************************************/
+int setup_connections() {
+	// CONNECTIONS TO AUTH SERVER
+
+	// creation of dgram socket to connect the requests from apps to
+	// the authserver via localserver
+	apps_local_server_inet_socket = socket(AF_INET, SOCK_DGRAM, 0);
+	if(apps_local_server_inet_socket == -1) {
+		print_error("Unable to create socket to connect apps to authentication server");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	// setting a timeout on requests from apps to the authserver
+	// TODO checkar um timeout em ação
+	struct timeval tv;
+	tv.tv_sec = 300; // timeout time
+	if(setsockopt(apps_local_server_inet_socket, SOL_SOCKET, SO_RCVTIMEO | SO_SNDTIMEO, &tv, sizeof(tv)) < 0) {
+		close(apps_local_server_inet_socket);
+		apps_local_server_inet_socket = -1;
+		print_error("Unable to set options on socket to connect apps to authentication server");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	// creation of dgram socket to connect the requests from consoles to
+	// the authserver via localserver
+	console_local_server_inet_socket = socket(AF_INET, SOCK_DGRAM, 0);
+	if(console_local_server_inet_socket == -1) {
+		close(apps_local_server_inet_socket);
+		apps_local_server_inet_socket = -1;
+		print_error("Unable to create socket to connect consoles to authentication server");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	apps_auth_server_inet_socket_addr.sin_family = AF_INET;
+	apps_auth_server_inet_socket_addr.sin_port = htons(APPS_AUTH_SERVER_PORT);
+	apps_auth_server_inet_socket_addr.sin_addr.s_addr = inet_addr(AUTH_SERVER_ADDRESS);
+
+	console_auth_server_inet_socket_addr.sin_family = AF_INET;
+	console_auth_server_inet_socket_addr.sin_port = htons(CONSOLE_AUTH_SERVER_PORT);
+	console_auth_server_inet_socket_addr.sin_addr.s_addr = inet_addr(AUTH_SERVER_ADDRESS);
+
+	// GLOBAL LOCKS
+
+	// inicializing the rwlock for the console data sharing
+	if(pthread_rwlock_init(&group_list_rwlock, NULL) != 0) {
+		close(apps_local_server_inet_socket);
+		apps_local_server_inet_socket = -1;
+		close(console_local_server_inet_socket);
+		console_local_server_inet_socket = -1;
+		print_error("Unable to initialize groups list rwlock");
+		return UNSUCCESSFUL_OPERATION;
+	}
+	// inicializing the mutex for communication with the authentication server
+	if(pthread_mutex_init(&authentication_mutex, NULL) != 0) {
+		close(apps_local_server_inet_socket);
+		apps_local_server_inet_socket = -1;
+		close(console_local_server_inet_socket);
+		console_local_server_inet_socket = -1;
+		pthread_rwlock_destroy(&group_list_rwlock);
+		print_error("Unable to initialize authentication mutex");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	// CONNECTIONS TO APPS
+
+	// creation of unix socket to connect the requests from apps to the localserver
+	local_server_unix_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+	if(local_server_unix_socket == -1) {
+		close(apps_local_server_inet_socket);
+		apps_local_server_inet_socket = -1;
+		close(console_local_server_inet_socket);
+		console_local_server_inet_socket = -1;
+		pthread_rwlock_destroy(&group_list_rwlock);
+		pthread_mutex_destroy(&authentication_mutex);
+		print_error("Unable to create socket to connect to apps");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	// creation of unix socket to connect the apps callbacks to the localserver
+	cb_local_server_unix_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+	if(local_server_unix_socket == -1) {
+		close(apps_local_server_inet_socket);
+		apps_local_server_inet_socket = -1;
+		close(console_local_server_inet_socket);
+		console_local_server_inet_socket = -1;
+		close(local_server_unix_socket);
+		local_server_unix_socket = -1;
+		pthread_rwlock_destroy(&group_list_rwlock);
+		pthread_mutex_destroy(&authentication_mutex);
+		print_error("Unable to create socket to connect to callbacks");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	local_server_unix_socket_addr.sun_family = AF_UNIX;
+	sprintf(local_server_unix_socket_addr.sun_path, LOCAL_SERVER_ADDRESS);
+	if(unlink(LOCAL_SERVER_ADDRESS) == -1) {
+		close(apps_local_server_inet_socket);
+		apps_local_server_inet_socket = -1;
+		close(console_local_server_inet_socket);
+		console_local_server_inet_socket = -1;
+		close(local_server_unix_socket);
+		local_server_unix_socket = -1;
+		pthread_rwlock_destroy(&group_list_rwlock);
+		pthread_mutex_destroy(&authentication_mutex);
+		print_error("Unable to unlick socket to connect to apps path");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	cb_local_server_unix_socket_addr.sun_family = AF_UNIX;
+	sprintf(cb_local_server_unix_socket_addr.sun_path, CB_LOCAL_SERVER_ADDRESS);
+	if(unlink(CB_LOCAL_SERVER_ADDRESS) == -1) {
+		close(apps_local_server_inet_socket);
+		apps_local_server_inet_socket = -1;
+		close(console_local_server_inet_socket);
+		console_local_server_inet_socket = -1;
+		close(local_server_unix_socket);
+		local_server_unix_socket = -1;
+		pthread_rwlock_destroy(&group_list_rwlock);
+		pthread_mutex_destroy(&authentication_mutex);
+		print_error("Unable to unlick socket to connect to callbacks path");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	// bind unix socket to connect the requests from apps to the localserver
+	if(bind(local_server_unix_socket, (struct sockaddr*)&(local_server_unix_socket_addr), sizeof(struct sockaddr_un)) == -1) {
+		close(apps_local_server_inet_socket);
+		apps_local_server_inet_socket = -1;
+		close(console_local_server_inet_socket);
+		console_local_server_inet_socket = -1;
+		close(local_server_unix_socket);
+		local_server_unix_socket = -1;
+		close(cb_local_server_unix_socket);
+		cb_local_server_unix_socket = -1;
+		pthread_rwlock_destroy(&group_list_rwlock);
+		pthread_mutex_destroy(&authentication_mutex);
+		print_error("Unable to bind socket to connect to apps");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	// bind unix socket to connect the apps callbacks to the localserver
+	if(bind(cb_local_server_unix_socket, (struct sockaddr*)&(cb_local_server_unix_socket_addr), sizeof(struct sockaddr_un)) == -1) {
+		close(apps_local_server_inet_socket);
+		apps_local_server_inet_socket = -1;
+		close(console_local_server_inet_socket);
+		console_local_server_inet_socket = -1;
+		close(local_server_unix_socket);
+		local_server_unix_socket = -1;
+		close(cb_local_server_unix_socket);
+		cb_local_server_unix_socket = -1;
+		pthread_rwlock_destroy(&group_list_rwlock);
+		pthread_mutex_destroy(&authentication_mutex);
+		print_error("Unable to bind socket to connect to callbacks");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	return SUCCESSFUL_OPERATION;
+}
+
+/*********************************************************************
+* 
+** void start_connections() 
+*
+** Description:
+*		Sets apps socket and callbacs socket to listening mode with a max
+*		queue of connections set to MAX_QUEUE. Launches thread to handle 
+*		requestes cumming from the apps.
+*
+** Parameters:
+*  	This function takes no parameters.
+*
+** Return:
+*		On success: SUCCESSFUL_OPERATION is returned. 
+*
+*		On error: UNSUCCESSFUL_OPERATION is returned. 
+*		
+** Side-effects:
+*		This function has no side-effects.
+*
+*********************************************************************/
+int start_connections() {
+	if(listen(local_server_unix_socket, MAX_QUEUE) == -1) {
+		print_error("Unable to set apps socket to listening mode");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	if(listen(cb_local_server_unix_socket, MAX_QUEUE) == -1) {
+		print_error("Unable to set callbacks socket to listening mode");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	if(pthread_create(&listening_thread, NULL, connections_listener, NULL) != 0) {
+		print_error("Unable to create apps listening thread");
+		return UNSUCCESSFUL_OPERATION;
+	}
+
+	return SUCCESSFUL_OPERATION;
+}
+
+// CONSOLE HANDLING FUNCTIONS AVAILABLE IN .h
 
 /*********************************************************************
 * 
@@ -791,7 +890,7 @@ int group_info(char* group_id, char** secret, int* num_pairs) {
 	return SUCCESSFUL_OPERATION;
 }
 
-/*******************************************************************
+/*********************************************************************
 * 
 ** char* create_group(char* group_id, char** secret)
 *
@@ -825,7 +924,7 @@ int group_info(char* group_id, char** secret, int* num_pairs) {
 ** Side-effects:
 *		There are no side-effects
 *		
-*******************************************************************/
+*********************************************************************/
 int create_group(char* group_id, char** secret) {
 	group_t* group = groups_list;
 	int bytes = -1;
@@ -899,7 +998,7 @@ int create_group(char* group_id, char** secret) {
 	return SUCCESSFUL_OPERATION;
 }
 
-/*******************************************************************
+/*********************************************************************
 * 
 **void app_status() 
 *
@@ -918,7 +1017,7 @@ int create_group(char* group_id, char** secret) {
 ** Side-effects:
 *		There are no side-effects
 *		
-*******************************************************************/
+*********************************************************************/
 void app_status() {
 	connection_t* connection = connections_list;
 	char* buffer = int2str(connection->pid);
@@ -937,7 +1036,7 @@ void app_status() {
 	free(buffer);
 }
 
-/*******************************************************************
+/*********************************************************************
 * 
 **int delete_group(char* group_id) 
 *
@@ -969,7 +1068,7 @@ void app_status() {
 ** Side-effects:
 *		There are no side-effects
 *
-*******************************************************************/
+*********************************************************************/
 int delete_group(char* group_id) {
 	group_t* group = groups_list;
 	group_t* before_group = groups_list;

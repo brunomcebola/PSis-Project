@@ -59,7 +59,6 @@ void delete_sem_list(key_pair_t* key_given) {
 	return;
 }
 
-
 /*********************************************************************
 *
 ** unsigned int hash(char* key)
@@ -98,7 +97,6 @@ unsigned int hash(char* key) {
 	return hash_value;
 }
 
-
 /*********************************************************************
 *
 ** key_pair_t** create_hash_table()
@@ -114,12 +112,19 @@ unsigned int hash(char* key) {
 *		On success: A pointer of the array that represents the hash 
 *		table needed.
 *
+*		On error: NULL is returned.
+*
 ** Side-effects:
 *		This function has no side-effect.
 *	
 *********************************************************************/
 key_pair_t** create_hash_table() {
-	key_pair_t** hash_table = calloc(HASH_SIZE, sizeof(char*));
+	key_pair_t** hash_table = NULL;
+
+	hash_table = calloc(HASH_SIZE, sizeof(char*));
+	if(hash_table == NULL) {
+		return NULL;
+	}
 
 	// hash needs to start empy
 	for(int i = 0; i < HASH_SIZE; i++) {
@@ -128,7 +133,6 @@ key_pair_t** create_hash_table() {
 
 	return hash_table;
 }
-
 
 /*********************************************************************
 *
@@ -158,7 +162,7 @@ key_pair_t** create_hash_table() {
 int destroy_hash_table(key_pair_t** hash_table) {
 	key_pair_t *key_pair = NULL, *key_pair_aux = NULL;
 
-	if(hash_table == NULL){
+	if(hash_table == NULL) {
 		return NONEXISTENT_HASH_TABLE;
 	}
 
@@ -182,7 +186,6 @@ int destroy_hash_table(key_pair_t** hash_table) {
 
 	return SUCCESSFUL_OPERATION;
 }
-
 
 /*********************************************************************
 *
@@ -235,19 +238,18 @@ int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 	// create new key/pair value
 	if(key_pair == NULL) {
 		new_key = calloc(1, sizeof(key_pair_t));
-		if(new_key == NULL){
+		if(new_key == NULL) {
 			return NO_MEMORY_AVAILABLE;
 		}
-
 
 		new_key->next = NULL;
 
 		new_key->key = calloc(strlen(key) + 1, sizeof(char));
-		if(new_key->key == NULL){
+		if(new_key->key == NULL) {
 			return NO_MEMORY_AVAILABLE;
 		}
 		new_key->value = calloc(strlen(value) + 1, sizeof(char));
-		if(new_key->value == NULL){
+		if(new_key->value == NULL) {
 			return NO_MEMORY_AVAILABLE;
 		}
 		new_key->sem_head = NULL;
@@ -274,7 +276,6 @@ int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 		return UPDATED;
 	}
 }
-
 
 /*********************************************************************
 *
@@ -326,15 +327,15 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 
 	if(key_pair) {
 		new_sem = calloc(1, sizeof(sem_list_t));
-		if(new_sem == NULL){
+		if(new_sem == NULL) {
 			return NO_MEMORY_AVAILABLE;
 		}
 
 		new_sem->sem_id = sem_open(sem_name, O_CREAT, 0600, 0);
 		if(new_sem->sem_id == SEM_FAILED) {
-				free(new_sem);
-				return UNSUCCESSFUL_OPERATION;
-			}
+			free(new_sem);
+			return UNSUCCESSFUL_OPERATION;
+		}
 
 		new_sem->next = key_pair->sem_head;
 
@@ -342,7 +343,6 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 	}
 	return SUCCESSFUL_OPERATION;
 }
-
 
 /*********************************************************************
 *
@@ -392,7 +392,7 @@ int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
 
 	if(key_pair) {
 		*value = calloc(strlen(key_pair->value) + 1, sizeof(char));
-		if(*value == NULL){
+		if(*value == NULL) {
 			return NO_MEMORY_AVAILABLE;
 		}
 		strcpy(*value, key_pair->value);
@@ -401,7 +401,6 @@ int get_from_hash_table(key_pair_t** hash_table, char* key, char** value) {
 
 	return NONEXISTENT_KEY;
 }
-
 
 /*********************************************************************
 *
@@ -465,8 +464,6 @@ int delete_from_hash_table(key_pair_t** hash_table, char* key) {
 	return NONEXISTENT_KEY;
 }
 
-
-
 /*******************************************************************
 *
 **int get_number_of_entries() 
@@ -492,7 +489,7 @@ int get_number_of_entries(key_pair_t** hash_table) {
 	key_pair_t* key_pair = NULL;
 	int entries = 0;
 
-	if(hash_table == NULL){
+	if(hash_table == NULL) {
 		return NONEXISTENT_HASH_TABLE;
 	}
 

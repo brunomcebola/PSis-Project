@@ -24,6 +24,7 @@
 #define MAX_SECRET 32
 #define MAX_KEY 64
 #define MAX_NAME MAX_KEY + 16
+#define MAX_QUEUE 16
 
 typedef struct {
 	char group_id[MAX_GROUP_ID + 1];
