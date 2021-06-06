@@ -305,7 +305,9 @@ int put_on_hash_table(key_pair_t** hash_table, char* key, char* value) {
 *		On error: 
 *		- NO_MEMORY_AVAILABLE if there's any error in the calloc function;
 *		- UNSUCCESSFUL_OPERATION is returned if there's any error related
-*		  to the sem_open() function.
+*		  to the sem_open() function;
+*		- NONEXISTENT_GROUP is returned if specified key/value pair does
+*			not exist.
 *
 ** Side-effects:
 *		This function has no side-effect.
@@ -342,8 +344,12 @@ int put_sem_on_hash_table(key_pair_t** hash_table, char* key, char* sem_name) {
 		new_sem->next = key_pair->sem_head;
 
 		key_pair->sem_head = new_sem;
+
+		return SUCCESSFUL_OPERATION;
+	} else {
+		return NONEXISTENT_GROUP;
 	}
-	return SUCCESSFUL_OPERATION;
+	
 }
 
 /*********************************************************************

@@ -12,7 +12,11 @@
 #include "../KVS/KVS-Lib/KVS-lib.h"
 
 void callback_function_by_us(char* key) {
-	printf("\n\nKey %s modified\n\n", key);
+	printf("[1] Key %s modified\n\n", key);
+}
+
+void callback_function_by_us_2(char* key) {
+	printf("[2] Key %s modified\n\n", key);
 }
 
 void put_value_UI() {
@@ -51,14 +55,16 @@ void get_value_UI() {
 	get_value(key, &value);
 	printf("\n\n");
 
-	printf("Value: %s\n\n", value);
+	if(strlen(value) != 0) {
+		printf("Value: %s\n\n", value);
+	}
 }
 
 void delete_value_UI() {
 	char* key = NULL;
 	size_t size = 0;
 
-	print_title("GET VALUE");
+	print_title("DELETE VALUE");
 
 	printf("-- Key: ");
 	getline(&key, &size, stdin);
@@ -71,7 +77,7 @@ void delete_value_UI() {
 }
 
 void register_callback_UI() {
-	char* key = NULL;
+	char *key = NULL, *option = NULL;
 	size_t size = 0;
 
 	print_title("REGISTER CALLBACK");
@@ -81,20 +87,38 @@ void register_callback_UI() {
 	key[strcspn(key, "\n")] = '\0';
 	size = 0;
 
+	printf("-- Which function do you want (1 or 2): ");
+	getline(&option, &size, stdin);
+	option[strcspn(option, "\n")] = '\0';
+	size = 0;
+
 	printf("\n");
-	register_callback(key, callback_function_by_us);
+	if(strlen(option) != 1) {
+		print_warning("That is not an option");
+	} else {
+		if(atoi(option) == 0) {
+			print_warning("That is not an option");
+		} else {
+
+			if(atoi(option) == 1) {
+				register_callback(key, callback_function_by_us);
+			} else if(atoi(option) == 2) {
+				register_callback(key, callback_function_by_us_2);
+			} else {
+				print_warning("That is not an option");
+			}
+		}
+	}
 	printf("\n\n");
+
+	free(key);
+	free(option);
 }
 
-int main() {
-	int option = -1;
-	int code = -1;
+void login_UI() {
 	char *group_id = NULL, *secret = NULL;
 	size_t size = 0;
-
-	printf("-------------------------------------\n");
-	printf("------------ " ANSI_BOLD ANSI_CYAN "Application" ANSI_RESET " ------------\n");
-	printf("-------------------------------------\n\n");
+	int code = -1;
 
 	print_title("Login");
 
@@ -117,49 +141,84 @@ int main() {
 		free(secret);
 
 	} while(code != SUCCESSFUL_OPERATION);
+}
 
-	while(option != 5) {
-		option = -1;
+int main() {
+	char* option = NULL;
+	size_t size = 0;
+
+	option = calloc(2, sizeof(char));
+	strcpy(option, "5");
+
+	printf("-------------------------------------\n");
+	printf("------------ " ANSI_BOLD ANSI_CYAN "Application" ANSI_RESET " ------------\n");
+	printf("-------------------------------------\n\n");
+
+	while(atoi(option) != 6) {
+		if(atoi(option) == 5) {
+			login_UI();
+		}
+
+		free(option);
+		option = NULL;
+		size = 0;
 
 		printf(ANSI_BOLD "What do you want to do?\n\n" ANSI_RESET);
 
 		printf("-- 1) Insert value ------------------\n");
 		printf("-- 2) Get value ---------------------\n");
 		printf("-- 3) Delete value ------------------\n");
-		printf("-- 4) Register Callback of value ----\n");
-		printf("-- 5) Close Application -------------\n\n");
+		printf("-- 4) Register Callback -------------\n");
+		printf("-- 5) Logout ------------------------\n");
+		printf("-- 6) Close Application -------------\n\n");
 
 		printf("Option: ");
+		getline(&option, &size, stdin);
+		option[strcspn(option, "\n")] = '\0';
+		size = 0;
 
-		scanf("%d", &option);
-		getchar();
+		printf("\n");
+		if(strlen(option) != 1) {
+			print_warning("Option Not recognized");
+			printf("\n\n----\n");
+			continue;
+		} else if(atoi(option) == 0) {
+			print_warning("Option Not recognized");
+			printf("\n\n----\n");
+			continue;
+		}
 
 		printf("\n----\n\n");
 
-		switch(option) {
+		switch(atoi(option)) {
 			case 1: // create group
 				put_value_UI();
-				continue;
+				break;
 
 			case 2: // delete group
 				get_value_UI();
-				continue;
+				break;
 
 			case 3:
 				delete_value_UI();
-				continue;
+				break;
 
 			case 4:
 				register_callback_UI();
-				continue;
+				break;
 
 			case 5:
+				close_connection();
+				sleep(1);
+				break;
+
+			case 6:
 				close_connection();
 				break;
 
 			default:
-				printf("ERROR\n");
-				continue;
+				print_warning("Option Not recognized");
+				break;
 		}
 	}
 	exit(0);

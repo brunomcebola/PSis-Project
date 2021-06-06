@@ -187,6 +187,10 @@ void group_info_UI() {
 
 	printf("\n");
 	if(code != NONEXISTENT_GROUP) {
+		if(strlen(secret) == 0) {
+			print_warning("Group delete from auth server. Only existent on local server");
+			printf("\n");
+		}
 		print_success("Secret", secret);
 		printf("\n");
 		print_success("Number of key/pair values", int2str(num_pairs));
@@ -228,9 +232,6 @@ void app_status_UI() {
 	return;
 }
 
-
-
-
 /*********************************************************************
 * 
 **int close_local()
@@ -252,17 +253,20 @@ void app_status_UI() {
 *		There are no side-effects
 *
 *********************************************************************/
-void close_local_UI(){
+void close_local_UI() {
 	int response = -1;
 
 	print_title("Closing...");
 
 	response = close_local();
-
+	printf("\n");
+	if(response == SUCCESSFUL_OPERATION) {
+		print_success("Success", "Closed local server");
+	} else {
+		print_error("Something went wrong closing the local server");
+	}
+	printf("\n");
 }
-
-
-
 
 /*******************************************************************
 *
@@ -283,14 +287,20 @@ void close_local_UI(){
 *	
 *******************************************************************/
 void UI() {
-	int option = -1;
+	char* option = NULL;
+	size_t size = 0;
+
+	option = calloc(2, sizeof(char));
+	strcpy(option, "0");
 
 	printf("---------------------------------\n");
 	printf("------------ " ANSI_BOLD ANSI_CYAN "Console" ANSI_RESET " ------------\n");
 	printf("---------------------------------\n");
 
-	while(option != 5) {
-		option = -1;
+	while(atoi(option) != 5) {
+		free(option);
+		option = NULL;
+		size = 0;
 
 		printf(ANSI_BOLD "\nWhat do you want to do?\n" ANSI_RESET);
 		printf("--\n");
@@ -302,12 +312,24 @@ void UI() {
 
 		printf("Option: ");
 
-		scanf(" %d", &option);
-		getchar();
+		getline(&option, &size, stdin);
+		option[strcspn(option, "\n")] = '\0';
+		size = 0;
 
-		printf("\n----\n\n");
+		printf("\n");
+		if(strlen(option) != 1) {
+			print_warning("Option Not recognized");
+			printf("\n\n----\n");
+			continue;
+		} else if(atoi(option) == 0) {
+			print_warning("Option Not recognized");
+			printf("\n\n----\n");
+			continue;
+		}
 
-		switch(option) {
+		printf("----\n\n");
+
+		switch(atoi(option)) {
 			case 1: // create group
 				create_group_UI();
 				break;
@@ -325,10 +347,12 @@ void UI() {
 				break;
 
 			case 5:
-				// TODO close
+				close_local_UI();
 				break;
 
 			default:
+				print_warning("Option Not recognized");
+				printf("\n");
 				break;
 		}
 	}

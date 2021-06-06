@@ -286,26 +286,28 @@ void delete_value(connection_t* connection) {
 		return;
 	}
 
-	// notify all apps connected to the group that a key/pair value
-	// (send through the stream) was deleted
-	status = SUCCESSFUL_OPERATION;
-	while(aux != NULL) {
-		if(aux->group == connection->group) {
-			len_bytes = (MAX_KEY + 1) * sizeof(char);
-			bytes = write(aux->cb_socket, key, len_bytes);
-			if(bytes != len_bytes) {
-				status = UNSUCCESSFUL_OPERATION;
-				break;
+	if(code == SUCCESSFUL_OPERATION) {
+		// notify all apps connected to the group that a key/pair value
+		// (send through the stream) was deleted
+		status = SUCCESSFUL_OPERATION;
+		while(aux != NULL) {
+			if(aux->group == connection->group) {
+				len_bytes = (MAX_KEY + 1) * sizeof(char);
+				bytes = write(aux->cb_socket, key, len_bytes);
+				if(bytes != len_bytes) {
+					status = UNSUCCESSFUL_OPERATION;
+					break;
+				}
 			}
+
+			aux = aux->next;
 		}
 
-		aux = aux->next;
-	}
-
-	// sending notification status code to the stream
-	bytes = write(connection->socket, &status, sizeof(int));
-	if(bytes != sizeof(int)) {
-		return;
+		// sending notification status code to the stream
+		bytes = write(connection->socket, &status, sizeof(int));
+		if(bytes != sizeof(int)) {
+			return;
+		}
 	}
 }
 
@@ -419,7 +421,6 @@ void* connection_handler(void* connection) {
 	if(group == NULL) {
 		code = NONEXISTENT_GROUP;
 		bytes = write(((connection_t*)connection)->socket, &code, sizeof(int));
-		pthread_rwlock_unlock(&group_list_rwlock);
 		close_connection((connection_t*)connection, 1, 0);
 	}
 
@@ -451,6 +452,7 @@ void* connection_handler(void* connection) {
 		close_connection((connection_t*)connection, 0, 0);
 	}
 
+	((connection_t*)connection)->group = group;
 	pthread_mutex_unlock(&authentication_mutex);
 
 	while(1) {
@@ -602,17 +604,6 @@ int setup_connections() {
 		return UNSUCCESSFUL_OPERATION;
 	}
 
-	// setting a timeout on requests from apps to the authserver
-	// TODO checkar um timeout em ação
-	struct timeval tv;
-	tv.tv_sec = 300; // timeout time
-	if(setsockopt(apps_local_server_inet_socket, SOL_SOCKET, SO_RCVTIMEO | SO_SNDTIMEO, &tv, sizeof(tv)) < 0) {
-		close(apps_local_server_inet_socket);
-		apps_local_server_inet_socket = -1;
-		print_error("Unable to set options on socket to connect apps to authentication server");
-		return UNSUCCESSFUL_OPERATION;
-	}
-
 	// creation of dgram socket to connect the requests from consoles to
 	// the authserver via localserver
 	console_local_server_inet_socket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -701,7 +692,7 @@ int setup_connections() {
 		pthread_rwlock_destroy(&group_list_rwlock);
 		pthread_mutex_destroy(&authentication_mutex);
 		printf("\n\n");
-		print_error("Unable to unlick socket to connect to apps path");
+		print_error("Unable to unlink socket to connect to apps path");
 		printf("\n\n");
 		return UNSUCCESSFUL_OPERATION;
 	}
@@ -718,7 +709,7 @@ int setup_connections() {
 		pthread_rwlock_destroy(&group_list_rwlock);
 		pthread_mutex_destroy(&authentication_mutex);
 		printf("\n\n");
-		print_error("Unable to unlick socket to connect to callbacks path");
+		print_error("Unable to unlink socket to connect to callbacks path");
 		printf("\n\n");
 		return UNSUCCESSFUL_OPERATION;
 	}
@@ -1010,13 +1001,12 @@ void app_status() {
 	} else {
 		while(connection != NULL) {
 			buffer = int2str(connection->pid);
-			printf("\n\n");
 			print_success("PID", buffer);
 			printf("\n");
 			print_success("Connection establishing time", connection->open_time);
 			printf("\n");
 			print_success("Connection close time", connection->close_time);
-			printf("\n");
+			printf("\n\n");
 			connection = connection->next;
 			free(buffer);
 		}
@@ -1122,7 +1112,7 @@ int delete_group(char* group_id) {
 		}
 
 		free(group);
-		
+
 	} else {
 		return NONEXISTENT_GROUP;
 	}
@@ -1151,7 +1141,7 @@ int delete_group(char* group_id) {
 *		There are no side-effects
 *
 *********************************************************************/
-int close_local(){
+int close_local() {
 	int len_bytes = 0, bytes = 0;
 	char key[MAX_KEY + 1] = "\0";
 
@@ -1161,8 +1151,8 @@ int close_local(){
 	connection_t* aux = connections_list;
 	connection_t* before_aux = connections_list;
 
-	//deleting all the groups in the local server.	
-	pthread_rwlock_rwlock(&group_list_rwlock);
+	//deleting all the groups in the local server.
+	pthread_rwlock_wrlock(&group_list_rwlock);
 	while(group != NULL) {
 
 		// warning callback functions to shutdown
@@ -1175,7 +1165,7 @@ int close_local(){
 				if(bytes != len_bytes) {
 					return UNSUCCESSFUL_OPERATION;
 				}
-				
+
 				if(aux->socket != -1) {
 					close(aux->socket);
 					aux->socket = -1;
@@ -1185,19 +1175,17 @@ int close_local(){
 					aux->cb_socket = -1;
 				}
 
-				if(before_aux == aux){
+				if(before_aux == aux) {
 					connections_list = aux->next;
 					free(aux);
 					aux = connections_list;
 					before_aux = connections_list;
-				}
-				else{
+				} else {
 					before_aux->next = aux->next;
 					free(aux);
 					aux = before_aux->next;
 				}
-			}
-			else{
+			} else {
 				before_aux = aux;
 				aux = aux->next;
 			}
@@ -1215,22 +1203,21 @@ int close_local(){
 	pthread_rwlock_destroy(&group_list_rwlock);
 	pthread_mutex_destroy(&authentication_mutex);
 
-	if(close(local_server_unix_socket) != 0 ){
+	if(close(local_server_unix_socket) != 0) {
 		return UNSUCCESSFUL_OPERATION;
 	}
 
-	if(close(cb_local_server_unix_socket) != 0){
+	if(close(cb_local_server_unix_socket) != 0) {
 		return UNSUCCESSFUL_OPERATION;
 	}
 
-	if(close(apps_local_server_inet_socket) != 0){
+	if(close(apps_local_server_inet_socket) != 0) {
 		return UNSUCCESSFUL_OPERATION;
 	}
 
-	if(close(console_local_server_inet_socket) != 0){
+	if(close(console_local_server_inet_socket) != 0) {
 		return UNSUCCESSFUL_OPERATION;
 	}
 
 	return SUCCESSFUL_OPERATION;
-
 }

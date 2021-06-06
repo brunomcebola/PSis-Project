@@ -4,7 +4,7 @@
 
 // servers configurations
 
-#define LOCAL_SERVER_ADDRESS "/tmp/kvs_local_server_socket"
+#define LOCAL_SERVER_ADDRESS "/tmp/kvs_local_server_socket_kkk"
 #define CB_LOCAL_SERVER_ADDRESS "/tmp/kvs_cb_local_server_socket"
 #define AUTH_SERVER_ADDRESS "127.0.0.1"
 #define APPS_AUTH_SERVER_PORT 3000

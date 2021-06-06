@@ -158,10 +158,14 @@ void delete_group(struct sockaddr_in* addr, char* group_id) {
 *	
 *************************************************************************/
 void get_group_secret(struct sockaddr_in* addr, char* group_id) {
-	int bytes = -1, len_bytes = 0;
+	int bytes = -1, len_bytes = 0, code = 0;
 	char* secret = NULL;
 
-	get_from_hash_table(groups, group_id, &secret);
+	code = get_from_hash_table(groups, group_id, &secret);
+	if(code != SUCCESSFUL_OPERATION) {
+		secret = calloc(MAX_SECRET + 1, sizeof(char));
+		secret[0] = '\0';
+	}
 
 	len_bytes = (MAX_SECRET + 1) * sizeof(char);
 	bytes = sendto(console_auth_server_socket, secret, len_bytes, MSG_CONFIRM, (struct sockaddr*)addr, sizeof(struct sockaddr_in));
@@ -202,8 +206,7 @@ void* console_handler(void* arg) {
 	len = sizeof(struct sockaddr_in);
 
 	while(1) {
-		bytes =
-			recvfrom(console_auth_server_socket, &operation, sizeof(operation), MSG_WAITALL, (struct sockaddr*)&local_server_addr, &len);
+		bytes = recvfrom(console_auth_server_socket, &operation, sizeof(operation), MSG_WAITALL, (struct sockaddr*)&local_server_addr, &len);
 		if(bytes == -1) {
 			return NULL;
 		}
@@ -260,8 +263,7 @@ void apps_handler() {
 	len = sizeof(struct sockaddr_in);
 
 	while(1) {
-		bytes = recvfrom(
-			apps_auth_server_socket, &group_auth_info, sizeof(access_packet), MSG_WAITALL, (struct sockaddr*)&local_server_addr, &len);
+		bytes = recvfrom(apps_auth_server_socket, &group_auth_info, sizeof(access_packet), MSG_WAITALL, (struct sockaddr*)&local_server_addr, &len);
 		if(bytes != sizeof(access_packet)) {
 			continue;
 		}

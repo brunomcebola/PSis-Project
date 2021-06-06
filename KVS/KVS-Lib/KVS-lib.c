@@ -30,8 +30,6 @@ callback_t* callbacks_list = NULL;
 
 pthread_t cb_socket_thread;
 
-// TODO ver prints em todo o lado
-
 // FUNCTIONS FOR INTERNAL USE
 
 /*******************************************************************
@@ -151,12 +149,13 @@ void* callback_socket_handler(void* args) {
 
 	printf("\n");
 	if(code == SUCCESSFUL_OPERATION) {
-		if(bytes == len_bytes) {
+		if(bytes == 0) {
+			print_warning("The connection was between the app and the local server was terminated");
 			printf("\n\n");
+		} else if(bytes == len_bytes) {
 			print_warning("The connection was terminated due to group deletion");
 			printf("\n\n");
 		} else {
-			printf("\n\n");
 			print_error("The connection was terminated due to a problem in the callback thread");
 			printf("\n\n");
 		}
@@ -560,7 +559,7 @@ int get_value(char* key, char** value) {
 			print_error("Broken message received from local server");
 			return RECEIVED_BROKEN_MESSAGE;
 		}
-		
+
 		if(strlen(*value) == 0) {
 			print_warning("The provided key/value pair does not exist");
 		} else {
@@ -612,7 +611,7 @@ int get_value(char* key, char** value) {
 int delete_value(char* key) {
 	char type = DEL;
 	int bytes = 0, len_bytes = 0;
-	int response = -1;
+	int response = -1, response2 = -1;
 	char s_key[MAX_KEY + 1];
 
 	// verifies if there is a connection
@@ -664,23 +663,26 @@ int delete_value(char* key) {
 			print_success("Success", "Able to delete key/value pair");
 		}
 
-		// reading callback management response from stream
-		bytes = read(app_socket, &response, sizeof(int));
-		if(bytes == 0) {
-			print_error("Local server closed the connection");
-			close_connection();
-			return CLOSED_CONNECTION;
-		} else if(bytes != sizeof(int)) {
-			print_error("Broken message received from local server");
-			return RECEIVED_BROKEN_MESSAGE;
-		}
-
 		if(response == SUCCESSFUL_OPERATION) {
-			print_success("Success", "Able to erase all callbacks related to the key/value pair");
-			return SUCCESSFUL_OPERATION;
-		} else {
-			print_error("Unable to erase all callbacks related to the key/value pair");
-			return UNSUCCESSFUL_SUBOPERATION;
+			// reading callback management response from stream
+			bytes = read(app_socket, &response2, sizeof(int));
+			if(bytes == 0) {
+				print_error("Local server closed the connection");
+				close_connection();
+				return CLOSED_CONNECTION;
+			} else if(bytes != sizeof(int)) {
+				print_error("Broken message received from local server");
+				return RECEIVED_BROKEN_MESSAGE;
+			}
+
+			printf("\n");
+			if(response2 == SUCCESSFUL_OPERATION) {
+				print_success("Success", "Able to erase all existent callbacks related to the key/value pair");
+				return SUCCESSFUL_OPERATION;
+			} else {
+				print_error("Unable to erase all callbacks related to the key/value pair");
+				return UNSUCCESSFUL_SUBOPERATION;
+			}
 		}
 	}
 }
@@ -842,7 +844,11 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 
 				return SUCCESSFUL_OPERATION;
 			} else {
-				print_error("Unble to register callback");
+				if(response == UNSUCCESSFUL_OPERATION) {
+					print_error("Unble to register callback due to internal problems");
+				} else {
+					print_warning("Unble to register callback becuase key/pair value does not exist");
+				}
 
 				sem_close(callback_info->sem_id);
 				sem_unlink(callback_info->name);
@@ -883,12 +889,6 @@ int register_callback(char* key, void (*callback_function)(char*)) {
 *	
 *********************************************************************/
 int close_connection() {
-	// verifies if both are closed
-	if(app_socket == -1 && cb_socket == -1) {
-		print_error("No active connection");
-		return UNSUCCESSFUL_OPERATION;
-	}
-
 	// close main socket
 	if(app_socket != -1) {
 		if(close(app_socket) == -1) {
